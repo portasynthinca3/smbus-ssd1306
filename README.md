@@ -5,6 +5,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
 ## Features
   - Multiple screens with different information
   - Global screen switching using `Ctrl+Shift+{ScreenNo}`
+  - Automatic screen switching suspension using `Ctrl+Shift+0`
   - Media playback info through D-Bus
 
 #### Screens

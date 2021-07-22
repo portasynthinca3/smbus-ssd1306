@@ -115,9 +115,10 @@ class MediaGetter:
         pos = int(self.iface.Get("org.mpris.MediaPlayer2.Player", "Position"))
         artist = meta.get("xesam:albumArtist")
         rating = meta.get("xesam:autoRating")
+        length = meta.get("mpris:length")
         return (str(next(iter(artist))) if artist != None else None,
                 str(meta.get("xesam:title")),
-                int(meta.get("mpris:length")),
+                int(length) if length != None else None,
                 pos,
                 float(rating) if rating != None else None)
 
@@ -164,7 +165,7 @@ def get_media():
         return media
 
 SCREENS = ["cpu_ram_%", "cpu_temp_net", "music", "tcp"]
-forced_screen = -1
+forced_screen, screen_fixed = -1, False
 def drawing_thread(disp: SSD1306):
     global forced_screen
     # init state
@@ -183,7 +184,11 @@ def drawing_thread(disp: SSD1306):
     def force_screen(i):
         global forced_screen
         forced_screen = i
+    def fix_screen():
+        global screen_fixed
+        screen_fixed = not screen_fixed
     try:
+        keyboard.add_hotkey(f"ctrl + shift + 0", fix_screen)
         for i in range(1, len(SCREENS) + 1):
             keyboard.add_hotkey(f"ctrl + shift + {i}", force_screen, args=(i - 1,))
     except ImportError:
@@ -229,13 +234,23 @@ def drawing_thread(disp: SSD1306):
             disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
             disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
         elif screen == "music": # Media info
+            should_skip = False
             try:
                 media = get_media()
                 artist, title, duration, pos, rating = media.getSong()
+                if duration == None:
+                    duration = 1000000
+            except dbus.exceptions.DBusException:
+                artist, title, duration, pos, rating = "---", "---", 1000000, 0, None
+                should_skip = True
+            # if the media screen is fixed, don't skip
+            if should_skip and not screen_fixed:
+                skip = True
+            else:
                 duration //= 1000000 # duration and pos are in microseconds
                 pos //= 1000000
                 draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
-                draw_text_center(disp.draw, 0, title if title != None else "No title")
+                draw_text_center(disp.draw, 0, title)
                 if artist != None:
                     draw_text_center(disp.draw, 10, artist)
                 if rating != None:
@@ -244,8 +259,6 @@ def drawing_thread(disp: SSD1306):
                 draw_text_left(disp.draw, 46, duration_text)
                 pos_text = f"{pos // 60}:" + str(pos % 60).rjust(2, "0")
                 draw_text_right(disp.draw, 46, pos_text)
-            except dbus.exceptions.DBusException:
-                skip = True
         elif screen == "tcp": # TCP connection counter
             disp.draw.line((0, 16, 127, 16), fill=1)
             draw_history(disp.draw, (0, 16), graph_height, scale_history(tcp_history, graph_scale_y))
@@ -253,7 +266,7 @@ def drawing_thread(disp: SSD1306):
 
         # switch screens every SWITCH_PERIOD seconds
         # or if there's nothing to display on the current one
-        if skip or time() - screen_start >= SCREEN_SWITCH_PERIOD:
+        if skip or (not screen_fixed and time() - screen_start >= SCREEN_SWITCH_PERIOD):
             screen_id += 1
             screen_id %= len(SCREENS)
             screen_start = time()
@@ -261,6 +274,10 @@ def drawing_thread(disp: SSD1306):
             screen_id = forced_screen
             forced_screen = -1
             screen_start = time()
+
+        # draw a rectangle in the top right corner to indicate that the screen is fixed
+        if screen_fixed:
+            disp.draw.rectangle((123, 0, 127, 4), fill=1)
 
         # transfer data to the display
         if not skip:
