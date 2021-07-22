@@ -114,6 +114,8 @@ class MediaGetter:
         meta = self.iface.Get("org.mpris.MediaPlayer2.Player", "Metadata")
         pos = int(self.iface.Get("org.mpris.MediaPlayer2.Player", "Position"))
         artist = meta.get("xesam:albumArtist")
+        if artist == None:
+            artist = meta.get("xesam:artist")
         rating = meta.get("xesam:autoRating")
         length = meta.get("mpris:length")
         return (str(next(iter(artist))) if artist != None else None,
