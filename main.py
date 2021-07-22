@@ -18,7 +18,7 @@ import os, sys
 I2C_ADAPTER = 0
 SSD1306_ADDR = 0x3C
 SCREEN_SWITCH_PERIOD = 3
-MEDIA_PROVIDER = "spotify" # tested with "spotify" and "vlc"
+MEDIA_PROVIDER = "vlc" # tested with "spotify" and "vlc"
 ACCESS_DBUS_AS = 1000
 
 class SSD1306Vals:
@@ -77,6 +77,9 @@ class SSD1306:
         for i in range(0, 128 * 64 // 8, 8):
             self.data(self.fb[i : i+8])
 
+    def power(self, val):
+        self.cmd(SSD1306Vals.DISPLAY_ON if val else SSD1306Vals.DISPLAY_OFF)
+
     def init(self):
         self.cmd(SSD1306Vals.DISPLAY_OFF)
         self.cmd(SSD1306Vals.SET_DISPLAY_CLK_DIV, 0x80) # suggested ratio
@@ -92,9 +95,7 @@ class SSD1306:
         # remember, this poor panel is going to be running 24/7!
         # "normal" value: 0xC8
         self.cmd(SSD1306Vals.SET_CONTRAST, 0x00)
-        # also decresase the precharge period for the same reason
-        # "normal" value: 0xF1
-        self.cmd(SSD1306Vals.SET_PRECHARGE_PERIOD, 0x81)
+        self.cmd(SSD1306Vals.SET_PRECHARGE_PERIOD, 0xF1)
         self.cmd(SSD1306Vals.SET_VCOM_LEVEL, 0x40)
         self.cmd(SSD1306Vals.DISPLAY_VRAM)
         self.cmd(SSD1306Vals.DISPLAY_NORMAL)
@@ -144,6 +145,24 @@ def draw_text_left(draw: ImageDraw, y, text):
     w, _ = draw.textsize(text)
     draw.text((128 - w, y), text, fill=1)
 
+# all this wrapping is needed for euid memes
+def get_media():
+    media = None
+    uid = os.geteuid()
+    try:
+        os.seteuid(ACCESS_DBUS_AS)
+        media = MediaGetter(MEDIA_PROVIDER)
+    except dbus.exceptions.DBusException:
+        pass
+    try:
+        os.seteuid(uid)
+    except PermissionError:
+        pass
+    if media == None:
+        raise dbus.exceptions.DBusException()
+    else:
+        return media
+
 SCREENS = ["cpu_ram_%", "cpu_temp_net", "music", "tcp"]
 forced_screen = -1
 def drawing_thread(disp: SSD1306):
@@ -159,22 +178,6 @@ def drawing_thread(disp: SSD1306):
     screen_id = 0
     screen_start = time()
     last_query = time()
-
-    # try to connect to the media info provider
-    media = None
-    uid = os.geteuid()
-    try:
-        os.seteuid(ACCESS_DBUS_AS)
-        media = MediaGetter(MEDIA_PROVIDER)
-        if MEDIA_PROVIDER == "spotify":
-            print(f"Warning: media provider \"spotify\" does not return correct playback times, going to display 0:00")
-    except dbus.exceptions.DBusException as ex:
-        print(ex)
-        print(f"Warning: no media provider \"{MEDIA_PROVIDER}\", not going to display media information")
-    try:
-        os.seteuid(uid)
-    except PermissionError:
-        pass
 
     # add hotkeys
     def force_screen(i):
@@ -201,9 +204,6 @@ def drawing_thread(disp: SSD1306):
 
         tcp = len(psutil.net_connections(kind="tcp"))
 
-        if media != None:
-            song = media.getSong()
-
         # shift graphs
         cpu_history = shift_history(cpu_history, cpu * graph_scale_y)
         ram_history = shift_history(ram_history, (used_gb / total_gb) * 100 * graph_scale_y)
@@ -229,8 +229,9 @@ def drawing_thread(disp: SSD1306):
             disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
             disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
         elif screen == "music": # Media info
-            if media != None:
-                artist, title, duration, pos, rating = song
+            try:
+                media = get_media()
+                artist, title, duration, pos, rating = media.getSong()
                 duration //= 1000000 # duration and pos are in microseconds
                 pos //= 1000000
                 draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
@@ -243,7 +244,7 @@ def drawing_thread(disp: SSD1306):
                 draw_text_left(disp.draw, 46, duration_text)
                 pos_text = f"{pos // 60}:" + str(pos % 60).rjust(2, "0")
                 draw_text_right(disp.draw, 46, pos_text)
-            else:
+            except dbus.exceptions.DBusException:
                 skip = True
         elif screen == "tcp": # TCP connection counter
             disp.draw.line((0, 16, 127, 16), fill=1)
@@ -269,10 +270,14 @@ if __name__ == "__main__":
     display = SSD1306(I2C_ADAPTER, SSD1306_ADDR)
     display.init()
 
-    # if there's a "blank" argument, clear the screen and exit
+    # if there's a "blank" argument, clear GDDRAM, power the display down and exit
     if "blank" in sys.argv:
         display.flip()
+        display.power(False)
         exit()
+
+    if MEDIA_PROVIDER == "spotify":
+        print(f"Warning: media provider \"spotify\" does not return correct playback times, going to display 0:00")
 
     thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
     thr.start()

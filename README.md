@@ -27,10 +27,10 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
     2. check your wiring and try again.
   8. Tweak the configuration in `main.py` (see below)
   9. If you want to have D-Bus access, modify `/etc/sudoers`:
-    ```
-    Defaults        env_reset
-    Defaults        env_keep += "DBUS_SESSION_BUS_ADDRESS" # <- add this line
-    ```
+     ```
+     Defaults        env_reset
+     Defaults        env_keep += "DBUS_SESSION_BUS_ADDRESS" # <- add this line
+     ```
   10. Run! `sudo python3 main.py` or `chmod +x main.py && sudo ./main.py`
 
 ## Configuration
@@ -54,3 +54,39 @@ If you just want it to clear the screen and exit, pass `blank` (useful for pre-s
 sudo python3 main.py blank
 sudo ./main.py blank
 ```
+
+## Full automation tutorial (systemd)
+  1. Create `/etc/systemd/system/ssd1306.service`:
+     ```
+     [Unit]
+     Description=SSD1306 control software
+     After=network.target
+
+     [Service]
+     Type=simple
+     WorkingDirectory=/path/to/smbus-ssd1306
+     ExecStart=/path/to/smbus-ssd1306/main.py
+     ExecStop=/path/to/smbus-ssd1306/main.py blank
+     Restart=on-failure
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+  2. Start and enable the service:
+     ```
+     sudo systemctl start ssd1306
+     sudo systemctl enable ssd1306
+     ```
+  3. Create `/usr/lib/systemd/system-sleep/ssd1306`:
+     ```
+     #!/usr/bin/bash
+     if [ "${1}" == "pre" ]; then
+       systemctl stop ssd1306
+     elif [ "${1}" == "post" ]; then
+       systemctl start ssd1306
+     fi
+     ```
+  4. ...and make it executable:
+     ```
+     sudo chmod +xxx /usr/lib/systemd/system-sleep/ssd1306
+     ```
