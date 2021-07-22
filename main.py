@@ -210,7 +210,7 @@ def drawing_thread(disp: SSD1306):
                 if artist != None:
                     draw_text_center(disp.draw, 10, artist)
                 if rating != None:
-                    draw_progress(disp.draw, (50, 25), (27, 7), rating, 1.0)
+                    draw_progress(disp.draw, (50, 25), (27, 7), rating * 100, 100)
                 duration_text = f"{duration // 60}:" + str(duration % 60).rjust(2, "0")
                 draw_text_left(disp.draw, 46, duration_text)
                 pos_text = f"{pos // 60}:" + str(pos % 60).rjust(2, "0")
@@ -229,8 +229,8 @@ def drawing_thread(disp: SSD1306):
             disp.flip()
 
 if __name__ == "__main__":
-    display = SSD1306()
-    display.init(bus=I2C_ADAPTER, addr=SSD1306_ADDR)
+    display = SSD1306(I2C_ADAPTER, SSD1306_ADDR)
+    display.init()
 
     thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
     thr.start()
