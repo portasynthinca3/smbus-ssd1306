@@ -18,6 +18,7 @@
 ## line.
 
 from smbus import SMBus
+from PIL import Image, ImageDraw
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -46,9 +47,13 @@ class SSD1306Vals:
 
 class SSD1306:
     def __init__(self, bus=0, addr=0x3C):
+        # create interfacing objects
         self.bus = SMBus(bus)
         self.addr = addr
-        self.fb = bytes([0] * (128 * 64 // 8))
+        self.fb = bytearray([0] * (128 * 64 // 8))
+        # create PIL objects
+        self.img = Image.new("1", (128, 64), 0)
+        self.draw = ImageDraw.Draw(self.img)
 
     def cmd(self, cmd, *args):
         self.bus.write_i2c_block_data(self.addr, SSD1306Vals.CMD_PREFIX, [cmd] + list(args))
@@ -56,9 +61,18 @@ class SSD1306:
         self.bus.write_i2c_block_data(self.addr, SSD1306Vals.DATA_PREFIX, list(data))
 
     def flip(self):
+        # convert PIL image data into framebuffer data
+        for coord, pix in enumerate(self.img.getdata()):
+            x, y = coord % 128, coord // 128
+            idx, shift = x + ((y // 8) * 128), y & 0x7
+            if pix == 1:
+                self.fb[idx] |= 1 << shift
+            else:
+                self.fb[idx] &= ~(1 << shift)
+            
+        # write framebuffer
         self.cmd(SSD1306Vals.PAGE_ADDR, 0, 0xFF)
         self.cmd(SSD1306Vals.COL_ADDR, 0, 127)
-
         for i in range(0, 128 * 64 // 8, 8):
             self.data(self.fb[i : i+8])
 
@@ -81,7 +95,10 @@ class SSD1306:
         self.cmd(SSD1306Vals.DISABLE_SCROLL)
         self.cmd(SSD1306Vals.DISPLAY_ON)
 
-        self.fb = bytes([5] * (128 * 64 // 8)) # test pattern
+        self.draw.line((0, 32, 127, 63), fill=1, width=3)
+        self.draw.line((127, 0, 0, 63), fill=1, width=5)
+        self.draw.text((0, 0), "Hello, World!", fill=1)
+
         self.flip()
 
 display = SSD1306()
