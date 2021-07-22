@@ -4,18 +4,7 @@
 ## SSD1306 driver based on thom_tl's C++ code
 ## Licensed under WTFPL
 ##
-## Uses the Linux SMBus userland interface to display
-## data on an 128x64 SSD1306 screen connected directly to
-## the system SMBus.
-##
-## Please be aware of the logic levels though. My SMBus
-## uses 3.3V on the data lines. Those blue SSD1306
-## breakout boards (such as the one I own) are designed for that.
-## They also feature a 5V-to-3.3V charge pump. I powered
-## mine with a nearby 5V line. If you want to use one
-## of those boards make sure to either connect it to a 5V
-## line or short the charge pump and connect it to a 3.3V
-## line.
+## Read README.md for instructions!
 
 from smbus import SMBus
 from PIL import Image, ImageDraw
@@ -23,6 +12,11 @@ from threading import Thread
 import psutil
 from time import time
 import dbus
+
+I2C_ADAPTER = 0
+SSD1306_ADDR = 0x3C
+SCREEN_SWITCH_PERIOD = 3
+MEDIA_PROVIDER = "spotify"
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -146,8 +140,6 @@ def draw_text_left(draw: ImageDraw, y, text):
     draw.text((128 - w, y), text, fill=1)
 
 SCREENS = ["cpu_ram_%", "cpu_temp_net", "music"]
-SWITCH_PERIOD = 3
-MEDIA_PROVIDER = "spotify"
 def drawing_thread(disp: SSD1306):
     graph_height = 48
     graph_scale_y, history_depth = graph_height / 100, 60
@@ -204,7 +196,8 @@ def drawing_thread(disp: SSD1306):
             draw_history(disp.draw, (0, 16), graph_height, temp_history)
             # scale net history by max value
             net_max = max(1.0, max(net_history))
-            draw_history(disp.draw, (64, 16), graph_height, [int(graph_scale_y * 100 * x / net_max) for x in net_history])
+            net_normalized = [int(graph_scale_y * 100 * x / net_max) for x in net_history]
+            draw_history(disp.draw, (64, 16), graph_height, net_normalized)
             disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
             disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
         elif screen == "music": # Media info
@@ -226,7 +219,7 @@ def drawing_thread(disp: SSD1306):
                 skip = True
 
         # switch screens every SWITCH_PERIOD seconds
-        if time() - start >= SWITCH_PERIOD or skip:
+        if time() - start >= SCREEN_SWITCH_PERIOD or skip:
             screen_id += 1
             screen_id %= len(SCREENS)
             start = time()
@@ -237,7 +230,7 @@ def drawing_thread(disp: SSD1306):
 
 if __name__ == "__main__":
     display = SSD1306()
-    display.init()
+    display.init(bus=I2C_ADAPTER, addr=SSD1306_ADDR)
 
     thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
     thr.start()
