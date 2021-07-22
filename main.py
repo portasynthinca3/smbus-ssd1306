@@ -19,6 +19,7 @@
 
 from smbus import SMBus
 from PIL import Image, ImageDraw
+from threading import Thread
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -95,11 +96,20 @@ class SSD1306:
         self.cmd(SSD1306Vals.DISABLE_SCROLL)
         self.cmd(SSD1306Vals.DISPLAY_ON)
 
-        self.draw.line((0, 32, 127, 63), fill=1, width=3)
-        self.draw.line((127, 0, 0, 63), fill=1, width=5)
-        self.draw.text((0, 0), "Hello, World!", fill=1)
-
         self.flip()
 
-display = SSD1306()
-display.init()
+def drawing_thread(disp: SSD1306):
+    ctr = 0
+    while True:
+        disp.draw.rectangle((0, 0, 127, 63), fill=0)
+        disp.draw.text((0, 0), f"Hi {ctr}", fill=1)
+        ctr += 1
+        disp.flip()
+
+if __name__ == "__main__":
+    display = SSD1306()
+    display.init()
+
+    thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
+    thr.start()
+    thr.join()
