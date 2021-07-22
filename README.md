@@ -40,3 +40,17 @@ Look in `main.py` for these variables
   - `SCREEN_SWITCH_PERIOD`: the display will switch between different screens that many seconds apart
   - `MEDIA_PROVIDER`: application to grab media playback data from using D-Bus
   - `ACCESS_DBUS_AS`: uid to access the D-Bus as
+
+## Usage
+The program should be run with root privileges:
+```
+# either one
+sudo python3 main.py
+sudo ./main.py
+```
+If you just want it to clear the screen and exit, pass `blank` (useful for pre-shutdown and pre-suspend scripts):
+```
+# either one
+sudo python3 main.py blank
+sudo ./main.py blank
+```

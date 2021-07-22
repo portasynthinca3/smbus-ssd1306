@@ -13,7 +13,7 @@ import psutil
 from time import time
 import dbus
 import keyboard
-import os
+import os, sys
 
 I2C_ADAPTER = 0
 SSD1306_ADDR = 0x3C
@@ -268,6 +268,11 @@ def drawing_thread(disp: SSD1306):
 if __name__ == "__main__":
     display = SSD1306(I2C_ADAPTER, SSD1306_ADDR)
     display.init()
+
+    # if there's a "blank" argument, clear the screen and exit
+    if "blank" in sys.argv:
+        display.flip()
+        exit()
 
     thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
     thr.start()
