@@ -5,7 +5,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
 ## Current screens
   1. CPU frequency, CPU load graph, RAM usage, RAM usage graph
   2. CPU package temperature, CPU temp graph, network download speed, net graph
-  3. Media playback: song title, artist, auto-rating, time, song length
+  3. Media playback: song title, artist, auto-rating, time, song length. **Note:** Spotify is not sending correct playback time information (at least the version I have installed doesn't). Unfortunately, I can't do anything about this. When using Spotify the playback time is always going to report `0:00`.
 
 ## Setup
   1. Acquire an SSD1306 module that's wired to use the I2C interface
