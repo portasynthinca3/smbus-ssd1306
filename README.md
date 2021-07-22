@@ -2,7 +2,12 @@
 Why not use an SSD1306 OLED module as a metadata display for my laptop? That's exactly what I thought and that's exactly how this project came to be. It's intended to control an SSD1306 display connected straight to the System Management Bus, or SMBus for short.\
 **Warning:** Linux-only!
 
-## Current screens
+## Features
+  - Multiple screens with different information
+  - Global screen switching using `Ctrl+Shift+{ScreenNo}`
+  - Media playback info through D-Bus
+
+#### Screens
   1. CPU frequency, CPU load graph, RAM usage, RAM usage graph\
      ![Screen 1 screenshot](screenshots/screen_1.jpg)
   2. CPU package temperature, CPU temp graph, network download speed, net graph\
@@ -21,8 +26,12 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
     1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\
     2. check your wiring and try again.
   8. Tweak the configuration in `main.py` (see below)
-  9. Change the adapter virtual file ownership: `chown $USER /dev/i2c-0` (or `i2c-{the_adapter_id_that_worked_in_step_7}`). You'll probably need to do this at startup.
-  10. Run! `python3 main.py` or `chmod +x main.py && ./main.py`
+  9. If you want to have D-Bus access, modify `/etc/sudoers`:
+    ```
+    Defaults        env_reset
+    Defaults        env_keep += "DBUS_SESSION_BUS_ADDRESS" # <- add this line
+    ```
+  10. Run! `sudo python3 main.py` or `chmod +x main.py && sudo ./main.py`
 
 ## Configuration
 Look in `main.py` for these variables
@@ -30,3 +39,4 @@ Look in `main.py` for these variables
   - `SSD1306_ADDR`: display address. Probably `0x3C`, but may also be `0x3D`
   - `SCREEN_SWITCH_PERIOD`: the display will switch between different screens that many seconds apart
   - `MEDIA_PROVIDER`: application to grab media playback data from using D-Bus
+  - `ACCESS_DBUS_AS`: uid to access the D-Bus as

@@ -12,11 +12,14 @@ from threading import Thread
 import psutil
 from time import time
 import dbus
+import keyboard
+import os
 
 I2C_ADAPTER = 0
 SSD1306_ADDR = 0x3C
 SCREEN_SWITCH_PERIOD = 3
 MEDIA_PROVIDER = "spotify" # tested with "spotify" and "vlc"
+ACCESS_DBUS_AS = 1000
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -117,9 +120,11 @@ class MediaGetter:
                 pos,
                 float(rating) if rating != None else None)
 
+def scale_history(hist, y_scale):
+    max_val = max(1.0, max(hist))
+    return [int(y_scale * 100 * x / max_val) for x in hist]
 def shift_history(hist, new):
     return hist[1:] + [int(new)]
-
 def draw_history(draw: ImageDraw, xy, height, history):
     for i, val in enumerate(history):
         x = xy[0] + i
@@ -139,8 +144,10 @@ def draw_text_left(draw: ImageDraw, y, text):
     w, _ = draw.textsize(text)
     draw.text((128 - w, y), text, fill=1)
 
-SCREENS = ["cpu_ram_%", "cpu_temp_net", "music"]
+SCREENS = ["cpu_ram_%", "cpu_temp_net", "music", "tcp"]
+forced_screen = -1
 def drawing_thread(disp: SSD1306):
+    global forced_screen
     # init state
     graph_height = 48
     graph_scale_y, history_depth = graph_height / 100, 60
@@ -148,18 +155,36 @@ def drawing_thread(disp: SSD1306):
     ram_history = [0] * history_depth
     temp_history = [0] * history_depth
     net_history, last_net = [0] * history_depth, psutil.net_io_counters().bytes_recv
+    tcp_history = [0] * history_depth
     screen_id = 0
-    start = time()
+    screen_start = time()
     last_query = time()
 
     # try to connect to the media info provider
     media = None
+    uid = os.geteuid()
     try:
+        os.seteuid(ACCESS_DBUS_AS)
         media = MediaGetter(MEDIA_PROVIDER)
         if MEDIA_PROVIDER == "spotify":
             print(f"Warning: media provider \"spotify\" does not return correct playback times, going to display 0:00")
-    except dbus.exceptions.DBusException:
+    except dbus.exceptions.DBusException as ex:
+        print(ex)
         print(f"Warning: no media provider \"{MEDIA_PROVIDER}\", not going to display media information")
+    try:
+        os.seteuid(uid)
+    except PermissionError:
+        pass
+
+    # add hotkeys
+    def force_screen(i):
+        global forced_screen
+        forced_screen = i
+    try:
+        for i in range(1, len(SCREENS) + 1):
+            keyboard.add_hotkey(f"ctrl + shift + {i}", force_screen, args=(i - 1,))
+    except ImportError:
+        print("Warning: missing root access, unable to register screen switching hotkeys")
 
     while True:
         # get new values
@@ -174,6 +199,8 @@ def drawing_thread(disp: SSD1306):
         net = 8 * net / (time() - last_query)
         last_query = time()
 
+        tcp = len(psutil.net_connections(kind="tcp"))
+
         if media != None:
             song = media.getSong()
 
@@ -182,6 +209,7 @@ def drawing_thread(disp: SSD1306):
         ram_history = shift_history(ram_history, (used_gb / total_gb) * 100 * graph_scale_y)
         temp_history = shift_history(temp_history, (cpu_temp.current / cpu_temp.critical) * 100 * graph_scale_y)
         net_history = shift_history(net_history, net)
+        tcp_history = shift_history(tcp_history, tcp)
 
         # repaint screen
         skip = False
@@ -197,9 +225,7 @@ def drawing_thread(disp: SSD1306):
             disp.draw.line((0, 16, 127, 16), fill=1)
             draw_history(disp.draw, (0, 16), graph_height, temp_history)
             # scale net history by max value
-            net_max = max(1.0, max(net_history))
-            net_normalized = [int(graph_scale_y * 100 * x / net_max) for x in net_history]
-            draw_history(disp.draw, (64, 16), graph_height, net_normalized)
+            draw_history(disp.draw, (64, 16), graph_height, scale_history(net_history, graph_scale_y))
             disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
             disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
         elif screen == "music": # Media info
@@ -219,13 +245,21 @@ def drawing_thread(disp: SSD1306):
                 draw_text_right(disp.draw, 46, pos_text)
             else:
                 skip = True
+        elif screen == "tcp": # TCP connection counter
+            disp.draw.line((0, 16, 127, 16), fill=1)
+            draw_history(disp.draw, (0, 16), graph_height, scale_history(tcp_history, graph_scale_y))
+            disp.draw.text((0, 0), f"{tcp} conns", fill=1)
 
         # switch screens every SWITCH_PERIOD seconds
         # or if there's nothing to display on the current one
-        if skip or time() - start >= SCREEN_SWITCH_PERIOD:
+        if skip or time() - screen_start >= SCREEN_SWITCH_PERIOD:
             screen_id += 1
             screen_id %= len(SCREENS)
-            start = time()
+            screen_start = time()
+        if forced_screen >= 0:
+            screen_id = forced_screen
+            forced_screen = -1
+            screen_start = time()
 
         # transfer data to the display
         if not skip:
