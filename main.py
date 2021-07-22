@@ -20,6 +20,7 @@
 from smbus import SMBus
 from PIL import Image, ImageDraw
 from threading import Thread
+import psutil
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -98,12 +99,37 @@ class SSD1306:
 
         self.flip()
 
+def shift_history(hist, new):
+    return hist[1:] + [int(new)]
+
+def draw_history(draw: ImageDraw, xy, height, history):
+    for i, val in enumerate(history):
+        x = xy[0] + i
+        y = xy[1] + height
+        draw.line((x, y, x, y - val), fill=1, width=1)
+
 def drawing_thread(disp: SSD1306):
-    ctr = 0
+    graph_height = 48
+    graph_scale_y, history_depth = graph_height / 100, 60
+    cpu_history = [0] * history_depth
+    ram_history = [0] * history_depth
+
     while True:
+        # get new values
+        cpu, ram = psutil.cpu_percent(), psutil.virtual_memory()
+        cpu_history = shift_history(cpu_history, cpu * graph_scale_y)
+        ram_history = shift_history(ram_history, ram.percent * graph_scale_y)
+
+        # repaint screen
         disp.draw.rectangle((0, 0, 127, 63), fill=0)
-        disp.draw.text((0, 0), f"Hi {ctr}", fill=1)
-        ctr += 1
+        disp.draw.line((0, 16, 127, 16), fill=1)
+        draw_history(disp.draw, (0, 16), graph_height, cpu_history)
+        draw_history(disp.draw, (64, 16), graph_height, ram_history)
+        disp.draw.text((0, 0), f"{round(psutil.cpu_freq().current / 1000, 1)} GHz", fill=1)
+        used_gb = ram.used / (1024 ** 3)
+        total_gb = ram.total / (1024 ** 3)
+        disp.draw.text((63, 0), f"{round(used_gb, 1)}/{round(total_gb, 1)} GB", fill=1)
+
         disp.flip()
 
 if __name__ == "__main__":
