@@ -66,6 +66,9 @@ sudo ./main.py blank
      [Service]
      Type=simple
      WorkingDirectory=/path/to/smbus-ssd1306
+     # change the 1000 in the next line to your uid
+     # or omit it completely if D-Bus access is unneeded
+     Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
      ExecStart=/path/to/smbus-ssd1306/main.py
      ExecStop=/path/to/smbus-ssd1306/main.py blank
      Restart=on-failure
