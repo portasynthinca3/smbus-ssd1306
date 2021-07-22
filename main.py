@@ -16,7 +16,7 @@ import dbus
 I2C_ADAPTER = 0
 SSD1306_ADDR = 0x3C
 SCREEN_SWITCH_PERIOD = 3
-MEDIA_PROVIDER = "spotify"
+MEDIA_PROVIDER = "spotify" # tested with "spotify" and "vlc"
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -89,7 +89,7 @@ class SSD1306:
         # remember, this poor panel is going to be running 24/7!
         # "normal" value: 0xC8
         self.cmd(SSD1306Vals.SET_CONTRAST, 0x00)
-        # also decresase the percharge period
+        # also decresase the precharge period for the same reason
         # "normal" value: 0xF1
         self.cmd(SSD1306Vals.SET_PRECHARGE_PERIOD, 0x81)
         self.cmd(SSD1306Vals.SET_VCOM_LEVEL, 0x40)
@@ -141,16 +141,18 @@ def draw_text_left(draw: ImageDraw, y, text):
 
 SCREENS = ["cpu_ram_%", "cpu_temp_net", "music"]
 def drawing_thread(disp: SSD1306):
+    # init state
     graph_height = 48
     graph_scale_y, history_depth = graph_height / 100, 60
     cpu_history = [0] * history_depth
     ram_history = [0] * history_depth
     temp_history = [0] * history_depth
     net_history, last_net = [0] * history_depth, psutil.net_io_counters().bytes_recv
-
     screen_id = 0
     start = time()
     last_query = time()
+
+    # try to connect to the media info provider
     media = None
     try:
         media = MediaGetter(MEDIA_PROVIDER)
@@ -219,7 +221,8 @@ def drawing_thread(disp: SSD1306):
                 skip = True
 
         # switch screens every SWITCH_PERIOD seconds
-        if time() - start >= SCREEN_SWITCH_PERIOD or skip:
+        # or if there's nothing to display on the current one
+        if skip or time() - start >= SCREEN_SWITCH_PERIOD:
             screen_id += 1
             screen_id %= len(SCREENS)
             start = time()
