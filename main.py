@@ -21,6 +21,7 @@ from smbus import SMBus
 from PIL import Image, ImageDraw
 from threading import Thread
 import psutil
+from time import time
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -31,7 +32,7 @@ class SSD1306Vals:
     PAGE_ADDR =            0x22
     DISABLE_SCROLL =       0x2E
     SET_START_LINE =       0x40
-    SET_CONTRAST =         0x80
+    SET_CONTRAST =         0x81
     SET_CHARGE_PUMP =      0x8D
     SET_SEGMENT_REMAP =    0xA0
     DISPLAY_VRAM =         0xA4
@@ -89,8 +90,13 @@ class SSD1306:
         self.cmd(SSD1306Vals.SET_SEGMENT_REMAP | 1)
         self.cmd(SSD1306Vals.SET_COM_SCAN_DIR)
         self.cmd(SSD1306Vals.SET_COMPINS, 0x12)
-        self.cmd(SSD1306Vals.SET_CONTRAST, 0xCF)
-        self.cmd(SSD1306Vals.SET_PRECHARGE_PERIOD, 0xF1)
+        # drive the display at a lower contrast to prevent burnout
+        # remember, this poor panel is going to be running 24/7!
+        # "normal" value: 0xC8
+        self.cmd(SSD1306Vals.SET_CONTRAST, 0x00)
+        # also decresase the percharge period
+        # "normal" value: 0xF1
+        self.cmd(SSD1306Vals.SET_PRECHARGE_PERIOD, 0x81)
         self.cmd(SSD1306Vals.SET_VCOM_LEVEL, 0x40)
         self.cmd(SSD1306Vals.DISPLAY_VRAM)
         self.cmd(SSD1306Vals.DISPLAY_NORMAL)
@@ -108,28 +114,62 @@ def draw_history(draw: ImageDraw, xy, height, history):
         y = xy[1] + height
         draw.line((x, y, x, y - val), fill=1, width=1)
 
+SCREENS = ["cpu_ram_%", "cpu_temp_net", "music"]
+SWITCH_PERIOD = 3
 def drawing_thread(disp: SSD1306):
     graph_height = 48
     graph_scale_y, history_depth = graph_height / 100, 60
     cpu_history = [0] * history_depth
     ram_history = [0] * history_depth
+    temp_history = [0] * history_depth
+    net_history, last_net = [0] * history_depth, psutil.net_io_counters().bytes_recv
+
+    screen_id = 0
+    start = time()
+    last_query = time()
 
     while True:
         # get new values
         cpu, ram = psutil.cpu_percent(), psutil.virtual_memory()
+        used_gb = ram.used / (1024 ** 3)
+        total_gb = ram.total / (1024 ** 3)
+        cpu_temp = psutil.sensors_temperatures()["coretemp"][0]
+        net_raw = psutil.net_io_counters().bytes_recv
+        net = net_raw - last_net
+        last_net = net_raw
+        net = 8 * net / (time() - last_query)
+        last_query = time()
+
         cpu_history = shift_history(cpu_history, cpu * graph_scale_y)
-        ram_history = shift_history(ram_history, ram.percent * graph_scale_y)
+        ram_history = shift_history(ram_history, (used_gb / total_gb) * 100 * graph_scale_y)
+        temp_history = shift_history(temp_history, (cpu_temp.current / cpu_temp.critical) * 100 * graph_scale_y)
+        net_history = shift_history(net_history, (net / 1000000) * graph_scale_y)
 
         # repaint screen
         disp.draw.rectangle((0, 0, 127, 63), fill=0)
-        disp.draw.line((0, 16, 127, 16), fill=1)
-        draw_history(disp.draw, (0, 16), graph_height, cpu_history)
-        draw_history(disp.draw, (64, 16), graph_height, ram_history)
-        disp.draw.text((0, 0), f"{round(psutil.cpu_freq().current / 1000, 1)} GHz", fill=1)
-        used_gb = ram.used / (1024 ** 3)
-        total_gb = ram.total / (1024 ** 3)
-        disp.draw.text((63, 0), f"{round(used_gb, 1)}/{round(total_gb, 1)} GB", fill=1)
+        screen = SCREENS[screen_id]
+        if screen == "cpu_ram_%":
+            disp.draw.line((0, 16, 127, 16), fill=1)
+            draw_history(disp.draw, (0, 16), graph_height, cpu_history)
+            draw_history(disp.draw, (64, 16), graph_height, ram_history)
+            disp.draw.text((0, 0), f"{round(psutil.cpu_freq().current / 1000, 1)} GHz", fill=1)
+            disp.draw.text((63, 0), f"{round(used_gb, 1)}/{round(total_gb, 1)} GB", fill=1)
+        elif screen == "cpu_temp_net":
+            disp.draw.line((0, 16, 127, 16), fill=1)
+            draw_history(disp.draw, (0, 16), graph_height, temp_history)
+            draw_history(disp.draw, (64, 16), graph_height, net_history)
+            disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
+            disp.draw.text((63, 0), f"{int(net / 1000000)}mbps", fill=1)
+        elif screen == "music":
+            disp.draw.text((0, 0), "nothin' here yet!", fill=1)
 
+        # switch screens every SWITCH_PERIOD seconds
+        if time() - start >= SWITCH_PERIOD:
+            screen_id += 1
+            screen_id %= len(SCREENS)
+            start = time()
+
+        # transfer data to the display
         disp.flip()
 
 if __name__ == "__main__":
