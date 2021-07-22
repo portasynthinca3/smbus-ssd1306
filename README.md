@@ -14,7 +14,10 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
   2. CPU package temperature, CPU temp graph, network download speed, net graph\
      ![Screen 2 screenshot](screenshots/screen_2.jpg)
   3. Media playback: song title, artist, auto-rating, time, song length. **Note:** Spotify is not sending correct playback time information (at least the version I have installed doesn't). Unfortunately, I can't do anything about this. When using Spotify the playback time is always going to report `0:00`.\
-     ![Screen 3 screenshot](screenshots/screen_3.jpg)
+     ![Screen 3 screenshot](screenshots/screen_3.jpg)\
+     Spotify media playback data\
+     ![Screen 3 screenshot](screenshots/screen_3_vlc.jpg)\
+     VLC media playback data
 
 ## Setup
   1. Acquire an SSD1306 module that's wired to use the I2C interface
@@ -39,7 +42,7 @@ Look in `main.py` for these variables
   - `I2C_ADAPTER`: adapter number. Probably 0, but may be something else. Please refer to step 7 in `Setup`
   - `SSD1306_ADDR`: display address. Probably `0x3C`, but may also be `0x3D`
   - `SCREEN_SWITCH_PERIOD`: the display will switch between different screens that many seconds apart
-  - `MEDIA_PROVIDER`: application to grab media playback data from using D-Bus
+  - `MEDIA_PROVIDERS`: applications to try grabbing media playback data from using D-Bus
   - `ACCESS_DBUS_AS`: uid to access the D-Bus as
 
 ## Usage

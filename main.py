@@ -18,7 +18,7 @@ import os, sys
 I2C_ADAPTER = 0
 SSD1306_ADDR = 0x3C
 SCREEN_SWITCH_PERIOD = 3
-MEDIA_PROVIDER = "vlc" # tested with "spotify" and "vlc"
+MEDIA_PROVIDERS = ["spotify", "vlc"] # tested with "spotify" and "vlc"
 ACCESS_DBUS_AS = 1000
 
 class SSD1306Vals:
@@ -116,9 +116,14 @@ class MediaGetter:
         artist = meta.get("xesam:albumArtist")
         if artist == None:
             artist = meta.get("xesam:artist")
+        if artist != None:
+            try:
+                artist = str(next(iter(artist)))
+            except StopIteration:
+                artist = None
         rating = meta.get("xesam:autoRating")
         length = meta.get("mpris:length")
-        return (str(next(iter(artist))) if artist != None else None,
+        return (artist,
                 str(meta.get("xesam:title")),
                 int(length) if length != None else None,
                 pos,
@@ -152,15 +157,13 @@ def draw_text_left(draw: ImageDraw, y, text):
 def get_media():
     media = None
     uid = os.geteuid()
-    try:
-        os.seteuid(ACCESS_DBUS_AS)
-        media = MediaGetter(MEDIA_PROVIDER)
-    except dbus.exceptions.DBusException:
-        pass
-    try:
-        os.seteuid(uid)
-    except PermissionError:
-        pass
+    os.seteuid(ACCESS_DBUS_AS)
+    for prov in MEDIA_PROVIDERS:
+        try:
+            media = MediaGetter(prov)
+        except dbus.exceptions.DBusException:
+            pass
+    os.seteuid(uid)
     if media == None:
         raise dbus.exceptions.DBusException()
     else:
@@ -294,9 +297,6 @@ if __name__ == "__main__":
         display.flip()
         display.power(False)
         exit()
-
-    if MEDIA_PROVIDER == "spotify":
-        print(f"Warning: media provider \"spotify\" does not return correct playback times, going to display 0:00")
 
     thr = Thread(target=drawing_thread, args=(display,), name="Drawing thread")
     thr.start()
