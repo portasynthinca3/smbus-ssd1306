@@ -119,7 +119,6 @@ class MediaGetter:
         rating = meta.get("xesam:autoRating")
         return (str(next(iter(artist))) if artist != None else None,
                 str(meta.get("xesam:title")),
-                str(meta.get("xesam:album")),
                 int(meta.get("mpris:length")),
                 pos,
                 float(rating) if rating != None else None)
@@ -210,7 +209,7 @@ def drawing_thread(disp: SSD1306):
             disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
         elif screen == "music": # Media info
             if media != None:
-                artist, title, album, duration, pos, rating = song
+                artist, title, duration, pos, rating = song
                 duration //= 1000000 # duration and pos are in microseconds
                 pos //= 1000000
                 draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
