@@ -22,6 +22,7 @@ from PIL import Image, ImageDraw
 from threading import Thread
 import psutil
 from time import time
+import dbus
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -105,6 +106,24 @@ class SSD1306:
 
         self.flip()
 
+class MediaGetter:
+    def __init__(self, provider):
+        self.dbus = dbus.SessionBus()
+        self.media_bus = self.dbus.get_object(f"org.mpris.MediaPlayer2.{provider}", "/org/mpris/MediaPlayer2")
+        self.iface = dbus.Interface(self.media_bus, "org.freedesktop.DBus.Properties")
+
+    def getSong(self):
+        meta = self.iface.Get("org.mpris.MediaPlayer2.Player", "Metadata")
+        pos = int(self.iface.Get("org.mpris.MediaPlayer2.Player", "Position"))
+        artist = meta.get("xesam:albumArtist")
+        rating = meta.get("xesam:autoRating")
+        return (str(next(iter(artist))) if artist != None else None,
+                str(meta.get("xesam:title")),
+                str(meta.get("xesam:album")),
+                int(meta.get("mpris:length")),
+                pos,
+                float(rating) if rating != None else None)
+
 def shift_history(hist, new):
     return hist[1:] + [int(new)]
 
@@ -114,8 +133,22 @@ def draw_history(draw: ImageDraw, xy, height, history):
         y = xy[1] + height
         draw.line((x, y, x, y - val), fill=1, width=1)
 
+def draw_progress(draw: ImageDraw, xy, wh, val, max):
+    draw.rectangle((xy, (xy[0] + wh[0], xy[1] + wh[1])), fill=0, outline=1)
+    draw.rectangle(((xy[0] + 2, xy[1] + 2), (xy[0] + 2 + int((wh[0] - 4) * val / max), xy[1] + 2 + wh[1] - 4)), fill=1)
+
+def draw_text_center(draw: ImageDraw, y, text):
+    w, _ = draw.textsize(text)
+    draw.text((64 - (w // 2), y), text, fill=1)
+def draw_text_right(draw: ImageDraw, y, text):
+    draw.text((0, y), text, fill=1)
+def draw_text_left(draw: ImageDraw, y, text):
+    w, _ = draw.textsize(text)
+    draw.text((128 - w, y), text, fill=1)
+
 SCREENS = ["cpu_ram_%", "cpu_temp_net", "music"]
 SWITCH_PERIOD = 3
+MEDIA_PROVIDER = "spotify"
 def drawing_thread(disp: SSD1306):
     graph_height = 48
     graph_scale_y, history_depth = graph_height / 100, 60
@@ -127,6 +160,13 @@ def drawing_thread(disp: SSD1306):
     screen_id = 0
     start = time()
     last_query = time()
+    media = None
+    try:
+        media = MediaGetter(MEDIA_PROVIDER)
+        if MEDIA_PROVIDER == "spotify":
+            print(f"Warning: media provider \"spotify\" does not return correct playback times, going to display 0:00")
+    except dbus.exceptions.DBusException:
+        print(f"Warning: no media provider \"{MEDIA_PROVIDER}\", not going to display media information")
 
     while True:
         # get new values
@@ -134,43 +174,67 @@ def drawing_thread(disp: SSD1306):
         used_gb = ram.used / (1024 ** 3)
         total_gb = ram.total / (1024 ** 3)
         cpu_temp = psutil.sensors_temperatures()["coretemp"][0]
+
         net_raw = psutil.net_io_counters().bytes_recv
         net = net_raw - last_net
         last_net = net_raw
         net = 8 * net / (time() - last_query)
         last_query = time()
 
+        if media != None:
+            song = media.getSong()
+
+        # shift graphs
         cpu_history = shift_history(cpu_history, cpu * graph_scale_y)
         ram_history = shift_history(ram_history, (used_gb / total_gb) * 100 * graph_scale_y)
         temp_history = shift_history(temp_history, (cpu_temp.current / cpu_temp.critical) * 100 * graph_scale_y)
-        net_history = shift_history(net_history, (net / 1000000) * graph_scale_y)
+        net_history = shift_history(net_history, net)
 
         # repaint screen
+        skip = False
         disp.draw.rectangle((0, 0, 127, 63), fill=0)
         screen = SCREENS[screen_id]
-        if screen == "cpu_ram_%":
+        if screen == "cpu_ram_%": # CPU and RAM usage
             disp.draw.line((0, 16, 127, 16), fill=1)
             draw_history(disp.draw, (0, 16), graph_height, cpu_history)
             draw_history(disp.draw, (64, 16), graph_height, ram_history)
             disp.draw.text((0, 0), f"{round(psutil.cpu_freq().current / 1000, 1)} GHz", fill=1)
             disp.draw.text((63, 0), f"{round(used_gb, 1)}/{round(total_gb, 1)} GB", fill=1)
-        elif screen == "cpu_temp_net":
+        elif screen == "cpu_temp_net": # CPU temps and network usage
             disp.draw.line((0, 16, 127, 16), fill=1)
             draw_history(disp.draw, (0, 16), graph_height, temp_history)
-            draw_history(disp.draw, (64, 16), graph_height, net_history)
+            # scale net history by max value
+            net_max = max(1.0, max(net_history))
+            draw_history(disp.draw, (64, 16), graph_height, [int(graph_scale_y * 100 * x / net_max) for x in net_history])
             disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
-            disp.draw.text((63, 0), f"{int(net / 1000000)}mbps", fill=1)
-        elif screen == "music":
-            disp.draw.text((0, 0), "nothin' here yet!", fill=1)
+            disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
+        elif screen == "music": # Media info
+            if media != None:
+                artist, title, album, duration, pos, rating = song
+                duration //= 1000000 # duration and pos are in microseconds
+                pos //= 1000000
+                draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
+                draw_text_center(disp.draw, 0, title if title != None else "No title")
+                if artist != None:
+                    draw_text_center(disp.draw, 10, artist)
+                if rating != None:
+                    draw_progress(disp.draw, (50, 25), (27, 7), rating, 1.0)
+                duration_text = f"{duration // 60}:" + str(duration % 60).rjust(2, "0")
+                draw_text_left(disp.draw, 46, duration_text)
+                pos_text = f"{pos // 60}:" + str(pos % 60).rjust(2, "0")
+                draw_text_right(disp.draw, 46, pos_text)
+            else:
+                skip = True
 
         # switch screens every SWITCH_PERIOD seconds
-        if time() - start >= SWITCH_PERIOD:
+        if time() - start >= SWITCH_PERIOD or skip:
             screen_id += 1
             screen_id %= len(SCREENS)
             start = time()
 
         # transfer data to the display
-        disp.flip()
+        if not skip:
+            disp.flip()
 
 if __name__ == "__main__":
     display = SSD1306()
