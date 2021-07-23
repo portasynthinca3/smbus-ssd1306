@@ -58,7 +58,11 @@ sudo ./main.py blank
 ```
 
 ## Full automation tutorial (systemd)
-  1. Create `/etc/systemd/system/ssd1306.service`:
+  1. Add this to `/etc/sudoers`:
+     ```
+     Defaults  secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+     ```
+  2. Create `/etc/systemd/system/ssd1306.service`:
      ```
      [Unit]
      Description=SSD1306 control software
@@ -69,21 +73,23 @@ sudo ./main.py blank
      WorkingDirectory=/path/to/smbus-ssd1306
      # change the :1 on the next line to your display number
      Environment="DISPLAY=:1"
+     # change the 1000 on the next line to your uid
+     Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
      # change the 0 on the next line to the I2C adapter
      # change "username" on the next line to your username
-     ExecStart=sh -c "chown username /dev/i2c-0 && sudo --user username xhost local:root && python3 /path/to/smbus-ssd1306/main.py"
+     ExecStart=sh -c "chown username /dev/i2c-0 && sudo --user=username python3 /path/to/smbus-ssd1306/main.py"
      ExecStop=/path/to/smbus-ssd1306/main.py blank
      Restart=on-failure
 
      [Install]
      WantedBy=multi-user.target
      ```
-  2. Start and enable the service:
+  3. Start and enable the service:
      ```
      sudo systemctl start ssd1306
      sudo systemctl enable ssd1306
      ```
-  3. Create `/usr/lib/systemd/system-sleep/ssd1306`:
+  4. Create `/usr/lib/systemd/system-sleep/ssd1306`:
      ```
      #!/usr/bin/bash
      if [ "${1}" == "pre" ]; then
