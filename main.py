@@ -9,17 +9,12 @@
 from smbus import SMBus
 from PIL import Image, ImageDraw
 from threading import Thread
-import psutil
 from time import time
 import dbus
 import keyboard
 import os, sys
-
-I2C_ADAPTER = 0
-SSD1306_ADDR = 0x3C
-SCREEN_SWITCH_PERIOD = 3
-MEDIA_PROVIDERS = ["spotify", "vlc"] # tested with "spotify" and "vlc"
-ACCESS_DBUS_AS = 1000
+from screens import Screen
+from config import *
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -104,86 +99,16 @@ class SSD1306:
 
         self.flip()
 
-class MediaGetter:
-    def __init__(self, provider):
-        self.dbus = dbus.SessionBus()
-        self.media_bus = self.dbus.get_object(f"org.mpris.MediaPlayer2.{provider}", "/org/mpris/MediaPlayer2")
-        self.iface = dbus.Interface(self.media_bus, "org.freedesktop.DBus.Properties")
-
-    def getSong(self):
-        meta = self.iface.Get("org.mpris.MediaPlayer2.Player", "Metadata")
-        pos = int(self.iface.Get("org.mpris.MediaPlayer2.Player", "Position"))
-        artist = meta.get("xesam:albumArtist")
-        if artist == None:
-            artist = meta.get("xesam:artist")
-        if artist != None:
-            try:
-                artist = str(next(iter(artist)))
-            except StopIteration:
-                artist = None
-        rating = meta.get("xesam:autoRating")
-        length = meta.get("mpris:length")
-        return (artist,
-                str(meta.get("xesam:title")),
-                int(length) if length != None else None,
-                pos,
-                float(rating) if rating != None else None)
-
-def scale_history(hist, y_scale):
-    max_val = max(1.0, max(hist))
-    return [int(y_scale * 100 * x / max_val) for x in hist]
-def shift_history(hist, new):
-    return hist[1:] + [int(new)]
-def draw_history(draw: ImageDraw, xy, height, history):
-    for i, val in enumerate(history):
-        x = xy[0] + i
-        y = xy[1] + height
-        draw.line((x, y, x, y - val), fill=1, width=1)
-
-def draw_progress(draw: ImageDraw, xy, wh, val, max):
-    draw.rectangle((xy, (xy[0] + wh[0], xy[1] + wh[1])), fill=0, outline=1)
-    draw.rectangle(((xy[0] + 2, xy[1] + 2), (xy[0] + 2 + int((wh[0] - 4) * val / max), xy[1] + 2 + wh[1] - 4)), fill=1)
-
-def draw_text_center(draw: ImageDraw, y, text):
-    w, _ = draw.textsize(text)
-    draw.text((64 - (w // 2), y), text, fill=1)
-def draw_text_right(draw: ImageDraw, y, text):
-    draw.text((0, y), text, fill=1)
-def draw_text_left(draw: ImageDraw, y, text):
-    w, _ = draw.textsize(text)
-    draw.text((128 - w, y), text, fill=1)
-
-# all this wrapping is needed for euid memes
-def get_media():
-    media = None
-    uid = os.geteuid()
-    os.seteuid(ACCESS_DBUS_AS)
-    for prov in MEDIA_PROVIDERS:
-        try:
-            media = MediaGetter(prov)
-        except dbus.exceptions.DBusException:
-            pass
-    os.seteuid(uid)
-    if media == None:
-        raise dbus.exceptions.DBusException()
-    else:
-        return media
-
-SCREENS = ["cpu_ram_%", "cpu_temp_net", "music", "tcp"]
 forced_screen, screen_fixed = -1, False
+SCREEN_CLASSES = Screen.__subclasses__()
+SCREENS = []
 def drawing_thread(disp: SSD1306):
     global forced_screen
+
     # init state
-    graph_height = 48
-    graph_scale_y, history_depth = graph_height / 100, 60
-    cpu_history = [0] * history_depth
-    ram_history = [0] * history_depth
-    temp_history = [0] * history_depth
-    net_history, last_net = [0] * history_depth, psutil.net_io_counters().bytes_recv
-    tcp_history = [0] * history_depth
     screen_id = 0
     screen_start = time()
-    last_query = time()
+    SCREENS = [x(disp.draw) for x in SCREEN_CLASSES]
 
     # add hotkeys
     def force_screen(i):
@@ -200,76 +125,15 @@ def drawing_thread(disp: SSD1306):
         print("Warning: missing root access, unable to register screen switching hotkeys")
 
     while True:
-        # get new values
-        cpu, ram = psutil.cpu_percent(), psutil.virtual_memory()
-        used_gb = ram.used / (1024 ** 3)
-        total_gb = ram.total / (1024 ** 3)
-        cpu_temp = psutil.sensors_temperatures()["coretemp"][0]
-
-        net_raw = psutil.net_io_counters().bytes_recv
-        net = net_raw - last_net
-        last_net = net_raw
-        net = 8 * net / (time() - last_query)
-        last_query = time()
-
-        tcp = len(psutil.net_connections(kind="tcp"))
-
-        # shift graphs
-        cpu_history = shift_history(cpu_history, cpu * graph_scale_y)
-        ram_history = shift_history(ram_history, (used_gb / total_gb) * 100 * graph_scale_y)
-        temp_history = shift_history(temp_history, (cpu_temp.current / cpu_temp.critical) * 100 * graph_scale_y)
-        net_history = shift_history(net_history, net)
-        tcp_history = shift_history(tcp_history, tcp)
+        # update screens
+        for s in SCREENS:
+            s.update()
 
         # repaint screen
         skip = False
         disp.draw.rectangle((0, 0, 127, 63), fill=0)
         screen = SCREENS[screen_id]
-        if screen == "cpu_ram_%": # CPU and RAM usage
-            disp.draw.line((0, 16, 127, 16), fill=1)
-            draw_history(disp.draw, (0, 16), graph_height, cpu_history)
-            draw_history(disp.draw, (64, 16), graph_height, ram_history)
-            disp.draw.text((0, 0), f"{round(psutil.cpu_freq().current / 1000, 1)} GHz", fill=1)
-            disp.draw.text((63, 0), f"{round(used_gb, 1)}/{round(total_gb, 1)} GB", fill=1)
-        elif screen == "cpu_temp_net": # CPU temps and network usage
-            disp.draw.line((0, 16, 127, 16), fill=1)
-            draw_history(disp.draw, (0, 16), graph_height, temp_history)
-            # scale net history by max value
-            draw_history(disp.draw, (64, 16), graph_height, scale_history(net_history, graph_scale_y))
-            disp.draw.text((0, 0), f"{int(cpu_temp.current)}°C", fill=1)
-            disp.draw.text((63, 0), f"{round(net / 1000000, 2)}mbps", fill=1)
-        elif screen == "music": # Media info
-            should_skip = False
-            try:
-                media = get_media()
-                artist, title, duration, pos, rating = media.getSong()
-                if duration == None:
-                    duration = 1000000
-            except dbus.exceptions.DBusException:
-                artist, title, duration, pos, rating = "---", "---", 1000000, 0, None
-                should_skip = True
-            # if the media screen is fixed, don't skip
-            if should_skip and not screen_fixed:
-                skip = True
-            else:
-                duration //= 1000000 # duration and pos are in microseconds
-                pos //= 1000000
-                if duration == 0:
-                    duration = 1
-                draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
-                draw_text_center(disp.draw, 0, title)
-                if artist != None:
-                    draw_text_center(disp.draw, 10, artist)
-                if rating != None:
-                    draw_progress(disp.draw, (50, 25), (27, 7), rating * 100, 100)
-                duration_text = f"{duration // 60}:" + str(duration % 60).rjust(2, "0")
-                draw_text_left(disp.draw, 46, duration_text)
-                pos_text = f"{pos // 60}:" + str(pos % 60).rjust(2, "0")
-                draw_text_right(disp.draw, 46, pos_text)
-        elif screen == "tcp": # TCP connection counter
-            disp.draw.line((0, 16, 127, 16), fill=1)
-            draw_history(disp.draw, (0, 16), graph_height, scale_history(tcp_history, graph_scale_y))
-            disp.draw.text((0, 0), f"{tcp} conns", fill=1)
+        skip = screen.render()
 
         # switch screens every SWITCH_PERIOD seconds
         # or if there's nothing to display on the current one

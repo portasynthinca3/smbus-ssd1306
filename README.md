@@ -4,6 +4,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
 
 ## Features
   - Multiple screens with different information
+  - Framework to add custom screens
   - Global screen switching using `Ctrl+Shift+{ScreenNo}`
   - Automatic screen switching suspension using `Ctrl+Shift+0`
   - Media playback info through D-Bus
@@ -29,7 +30,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
   7. Run `i2cdetect 0` (from the `i2c-tools` package on most distros) and check if it has found a device at address `0x3C` or `0x3D` - that's the display address. If not:\
     1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\
     2. check your wiring and try again.
-  8. Tweak the configuration in `main.py` (see below)
+  8. Tweak the configuration (see below)
   9. If you want to have D-Bus access, modify `/etc/sudoers`:
      ```
      Defaults        env_reset
@@ -38,7 +39,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
   10. Run! `sudo python3 main.py` or `chmod +x main.py && sudo ./main.py`
 
 ## Configuration
-Look in `main.py` for these variables
+Look in `config.py` for these variables
   - `I2C_ADAPTER`: adapter number. Probably 0, but may be something else. Please refer to step 7 in `Setup`
   - `SSD1306_ADDR`: display address. Probably `0x3C`, but may also be `0x3D`
   - `SCREEN_SWITCH_PERIOD`: the display will switch between different screens that many seconds apart
