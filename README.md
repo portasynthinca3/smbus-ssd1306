@@ -60,7 +60,7 @@ sudo ./main.py blank
 ## Full automation tutorial (systemd)
   1. Add this to `/etc/sudoers`:
      ```
-     Defaults  secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+     Defaults	env_keep += "DBUS_SESSION_BUS_ADDRESS"
      ```
   2. Create `/etc/systemd/system/ssd1306.service`:
      ```
