@@ -32,12 +32,8 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
      7.1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\
      7.2. check your wiring and try again.
   8. Tweak the configuration (see below)
-  9. If you want to have D-Bus access, modify `/etc/sudoers`:
-     ```
-     Defaults        env_reset
-     Defaults        env_keep += "DBUS_SESSION_BUS_ADDRESS" # <- add this line
-     ```
-  10. Run! `sudo python3 main.py` or `chmod +x main.py && sudo ./main.py`
+  9. Make yourself the owner of the adapter virtual file: `sudo chmod $USER /dev/i2c-0` (or another number, refer to step 7)
+  10. Run! `python3 main.py` or `chmod +x main.py && ./main.py`
 
 ## Configuration
 Look in `config.py` for these variables
@@ -71,10 +67,11 @@ sudo ./main.py blank
      [Service]
      Type=simple
      WorkingDirectory=/path/to/smbus-ssd1306
-     # change the 1000 in the next line to your uid
-     # or omit it completely if D-Bus access is unneeded
-     Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
-     ExecStart=/path/to/smbus-ssd1306/main.py
+     # change the :1 on the next line to your display number
+     Environment="DISPLAY=:1"
+     # change the 0 on the next line to the I2C adapter
+     # change "username" on the next line to your username
+     ExecStart=sh -c "chown username /dev/i2c-0 && sudo --user username xhost local:root && python3 /path/to/smbus-ssd1306/main.py"
      ExecStop=/path/to/smbus-ssd1306/main.py blank
      Restart=on-failure
 
