@@ -20,11 +20,11 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
      VLC media playback data
 
 ## Setup
-  1. Acquire an SSD1306 module that's wired to use the I2C interface
-  2. Find a schematic (and, preferably, a boardview) for your motherboard
+  1. Acquire an SSD1306 module that's wired to use the I2C interface.
+  2. Find a schematic (and, preferably, a boardview) for your motherboard. If you can't find any, please consider supporting [Right to Repair](https://www.repair.org/stand-up/).
   3. Find a convenient place to connect to the system SMB interface. The interface consists of two data lines: SDA (or DAT) and SCL (or CLK). My motherboard has three SMB interfaces coming out of the PCH, so I found the main one. There is also a whole host of other I2C interfaces you may find on your board. I tried some of them, but `i2cdetect` wasn't able to detect the display on any of them.
   4. Trace the schematic and make sure that these two lines are pulled up with a (probably 4.7kOhm) resistor to 3.3V as that's the voltage level the display is expecting.
-  5. Find a power rail to power the display with. Those convenient blue modules feature an onboard 5V-to-3.3V charge pump, so if you're using one find a 5V rail. Otherwise find a 3.3V power rail. **Note:** some power rails are labeled `SUS`, which stands for "suspend". You probably don't want to use them as they're active even while the computer is powered down.
+  5. Find a power rail to power the display with. Those convenient blue modules feature an onboard 5V-to-3.3V charge pump, so if you're using one find a 5V rail. Otherwise find a 3.3V power rail. **Note:** some power rails are labeled `SUS`, which stands for "suspend" and has, in fact, nothing to do with the slang terms used by many 2018 multiplayer social deduction videogame "Among Us" players. You probably don't want to use them as they're active even while the computer is powered down.
   6. Connect your display to those pins.
   7. Run `i2cdetect 0` (from the `i2c-tools` package on most distros) and check if it has found a device at address `0x3C` or `0x3D` - that's the display address. If not:\
     1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\

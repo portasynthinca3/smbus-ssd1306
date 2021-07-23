@@ -254,6 +254,8 @@ def drawing_thread(disp: SSD1306):
             else:
                 duration //= 1000000 # duration and pos are in microseconds
                 pos //= 1000000
+                if duration == 0:
+                    duration = 1
                 draw_progress(disp.draw, (0, 56), (127, 7), pos, duration)
                 draw_text_center(disp.draw, 0, title)
                 if artist != None:
