@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 from threading import Thread
 from time import time
 import dbus
-import keyboard
+from pynput import keyboard
 import os, sys
 from screens import Screen
 from config import *
@@ -99,16 +99,22 @@ class SSD1306:
 
         self.flip()
 
+def setup_hotkeys(hk):
+    def _thr():
+        with keyboard.GlobalHotKeys(hk) as h:
+            h.join()
+    Thread(target=_thr).start()
+
 forced_screen, screen_fixed = -1, False
-SCREEN_CLASSES = Screen.__subclasses__()
-SCREENS = []
+screen_classes = Screen.__subclasses__()
+screens = []
 def drawing_thread(disp: SSD1306):
-    global forced_screen
+    global forced_screen, screens
 
     # init state
     screen_id = 0
     screen_start = time()
-    SCREENS = [x(disp.draw) for x in SCREEN_CLASSES]
+    screens = [x(disp.draw) for x in screen_classes]
 
     # add hotkeys
     def force_screen(i):
@@ -117,29 +123,33 @@ def drawing_thread(disp: SSD1306):
     def fix_screen():
         global screen_fixed
         screen_fixed = not screen_fixed
-    try:
-        keyboard.add_hotkey(f"ctrl + shift + 0", fix_screen)
-        for i in range(1, len(SCREENS) + 1):
-            keyboard.add_hotkey(f"ctrl + shift + {i}", force_screen, args=(i - 1,))
-    except ImportError:
-        print("Warning: missing root access, unable to register screen switching hotkeys")
+
+    hotkeys = {"<ctrl>+<alt>+0": fix_screen}
+    for i in range(1, len(screens) + 1):
+        def _ctx_preserve(x):
+            hotkeys[f"<ctrl>+<alt>+{i}"] = lambda: force_screen(x - 1)
+        _ctx_preserve(i)
+    for s in screens:
+        hotkeys.update(s.register_hotkeys())
+    setup_hotkeys(hotkeys)
 
     while True:
         # update screens
-        for s in SCREENS:
+        for s in screens:
             s.update()
 
         # repaint screen
         skip = False
         disp.draw.rectangle((0, 0, 127, 63), fill=0)
-        screen = SCREENS[screen_id]
-        skip = screen.render()
+        skip = screens[screen_id].render()
+        if skip == None: skip = False
+        if screen_fixed: skip = False
 
         # switch screens every SWITCH_PERIOD seconds
         # or if there's nothing to display on the current one
         if skip or (not screen_fixed and time() - screen_start >= SCREEN_SWITCH_PERIOD):
             screen_id += 1
-            screen_id %= len(SCREENS)
+            screen_id %= len(screens)
             screen_start = time()
         if forced_screen >= 0:
             screen_id = forced_screen

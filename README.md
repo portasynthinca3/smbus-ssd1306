@@ -19,6 +19,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
      Spotify media playback data\
      ![Screen 3 screenshot](screenshots/screen_3_vlc.jpg)\
      VLC media playback data
+  4. osu! `z`-or-`x`-keystrokes-per-second measurement: current CPS, peak CPS.
 
 ## Setup
   1. Acquire an SSD1306 module that's wired to use the I2C interface.
@@ -28,8 +29,8 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
   5. Find a power rail to power the display with. Those convenient blue modules feature an onboard 5V-to-3.3V charge pump, so if you're using one find a 5V rail. Otherwise find a 3.3V power rail. **Note:** some power rails are labeled `SUS`, which stands for "suspend" and has, in fact, nothing to do with the slang terms used by many 2018 multiplayer social deduction videogame "Among Us" players. You probably don't want to use them as they're active even while the computer is powered down.
   6. Connect your display to those pins.
   7. Run `i2cdetect 0` (from the `i2c-tools` package on most distros) and check if it has found a device at address `0x3C` or `0x3D` - that's the display address. If not:\
-    1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\
-    2. check your wiring and try again.
+     7.1. run `i2cdetect -l` to list all I2C adapters, try all of them and see if the display shows up on any of them;\
+     7.2. check your wiring and try again.
   8. Tweak the configuration (see below)
   9. If you want to have D-Bus access, modify `/etc/sudoers`:
      ```

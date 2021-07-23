@@ -5,15 +5,18 @@ from PIL import ImageDraw
 import psutil, time
 from config import *
 from media import get_song
+from pynput import keyboard
 
 ## If you want to define your own screen, consider familiarizing
 ## yourself with the lifecycle:
 ## 1. Screen object gets created. Only this instance exists at any point in time.
-## 2. Every frame:
-##    2.1. update() of each screen gets called regardless of whether the screen
+## 2. register_hotkeys() gets called on each of the screen instances so that
+##    the can, well, register global hotkeys.
+## 3. Every frame:
+##    3.1. update() of each screen gets called regardless of whether the screen
 ##         is currently selected or not;
-##    2.2. render() of the currently selected screen gets called. it may return
-##         False if there's nothing to display. If that screen is not currently
+##    3.2. render() of the currently selected screen gets called. it may return
+##         True if there's nothing to display. If that screen is not currently
 ##         fixed by the user, it will get skipped in the auto-switch cycle.
 ## You only need to define the screen class here. The main code will automatically
 ## pick it up.
@@ -55,6 +58,8 @@ class Graph:
 class Screen:
     def __init__(self, draw):
         self.draw = draw
+    def register_hotkeys(self):
+        return {}
     def update(self): ## updates internal values (even if the screen is not currently selected)
         pass
     def render(self): ## renders the screen
@@ -111,9 +116,6 @@ class TempNetScreen(Screen):
 class MediaScreen(Screen):
     def __init__(self, draw):
         super().__init__(draw)
-    
-    def update(self):
-        pass
 
     def render(self):
         should_skip = False
@@ -139,3 +141,43 @@ class MediaScreen(Screen):
         draw_text_right(self.draw, 46, pos_text)
 
         return should_skip
+
+class OsuScreen(Screen):
+    def __init__(self, draw):
+        super().__init__(draw)
+        self.strokes = []
+        self.session = False
+        self.graph = Graph(128, 48)
+        self.cps_cur = 0
+        self.cps_peak = 0
+
+    def key_pressed(self):
+        if self.session:
+            self.strokes.append(time.time())
+
+    def toggle_session(self):
+        if not self.session:
+            self.strokes = []
+            self.cps_peak = 0
+        self.session = not self.session
+
+    def register_hotkeys(self):
+        return {
+            "<ctrl>+<alt>+`": self.toggle_session,
+            "z": self.key_pressed,
+            "x": self.key_pressed
+        }
+
+    def update(self):
+        this_second = [x for x in self.strokes if time.time() - x <= 1]
+        self.cps_cur = len(this_second)
+        if self.cps_cur > self.cps_peak:
+            self.cps_peak = self.cps_cur
+        self.graph.shift(self.cps_cur)
+
+    def render(self):
+        if self.session:
+            self.draw.text((0, 0), "S", fill=1)
+        self.graph.render(self.draw, (0, 16))
+        self.draw.text((16, 0), f"{int(self.cps_cur)} cur", fill=1)
+        self.draw.text((64, 0), f"{int(self.cps_peak)} peak", fill=1)

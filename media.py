@@ -26,19 +26,13 @@ class MediaGetter:
                 pos,
                 float(rating) if rating != None else None)
 
-## This wrapping is needed to circumvent D-Bus' security measures.
-## Hey, in my opinion they should've allowed root users to access
-## the session buses of other users.
 def get_song():
     song = None
-    uid = os.geteuid()
-    os.seteuid(ACCESS_DBUS_AS)
     for prov in MEDIA_PROVIDERS:
         try:
             song = MediaGetter(prov).get_song()
         except dbus.exceptions.DBusException:
             pass
-    os.seteuid(uid)
     if song == None:
         return None
     else:
