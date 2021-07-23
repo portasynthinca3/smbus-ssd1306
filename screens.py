@@ -5,7 +5,7 @@ from PIL import ImageDraw
 import psutil, time
 from config import *
 from media import get_song
-from pynput import keyboard
+from pynput import mouse
 
 ## If you want to define your own screen, consider familiarizing
 ## yourself with the lifecycle:
@@ -142,42 +142,48 @@ class MediaScreen(Screen):
 
         return should_skip
 
-class OsuScreen(Screen):
+class CpsScreen(Screen):
     def __init__(self, draw):
         super().__init__(draw)
-        self.strokes = []
-        self.session = False
+        self.events = []
         self.graph = Graph(128, 48)
         self.cps_cur = 0
         self.cps_peak = 0
+        self.mode = None
 
     def key_pressed(self):
-        if self.session:
-            self.strokes.append(time.time())
+        if not self.mode:
+            self.events.append(time.time())
+    def mouse_clicked(self, x, y, btn, pressed):
+        if pressed and (self.mode or self.mode == None):
+            self.events.append(time.time())
+    def switch_mode(self):
+        if   self.mode == None:  self.mode = True
+        elif self.mode == True:  self.mode = False
+        elif self.mode == False: self.mode = None
+        self.reset()
 
-    def toggle_session(self):
-        if not self.session:
-            self.strokes = []
-            self.cps_peak = 0
-        self.session = not self.session
+    def reset(self):
+        self.cps_peak = 0
 
     def register_hotkeys(self):
+        mouse.Listener(on_click=self.mouse_clicked).start()
         return {
-            "<ctrl>+<alt>+`": self.toggle_session,
+            "<ctrl>+<alt>+r": self.reset,
+            "<ctrl>+<alt>+o": self.switch_mode,
             "z": self.key_pressed,
             "x": self.key_pressed
         }
 
     def update(self):
-        this_second = [x for x in self.strokes if time.time() - x <= 1]
-        self.cps_cur = len(this_second)
+        self.events = [x for x in self.events if time.time() - x <= 1]
+        self.cps_cur = len(self.events)
         if self.cps_cur > self.cps_peak:
             self.cps_peak = self.cps_cur
         self.graph.shift(self.cps_cur)
 
     def render(self):
-        if self.session:
-            self.draw.text((0, 0), "S", fill=1)
         self.graph.render(self.draw, (0, 16))
+        self.draw.text((0, 0), {None: "B", False: "K", True: "M"}[self.mode], fill=1)
         self.draw.text((16, 0), f"{int(self.cps_cur)} cur", fill=1)
-        self.draw.text((64, 0), f"{int(self.cps_peak)} peak", fill=1)
+        self.draw.text((56, 0), f"{int(self.cps_peak)} peak", fill=1)

@@ -5,8 +5,8 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
 ## Features
   - Multiple screens with different information
   - Framework to add custom screens
-  - Global screen switching using `Ctrl+Shift+{ScreenNo}`
-  - Automatic screen switching suspension using `Ctrl+Shift+0`
+  - Global screen switching using `Ctrl+Alt+{ScreenNo}`
+  - Automatic screen switching suspension using `Ctrl+Alt+F`
   - Media playback info through D-Bus
 
 #### Screens
@@ -19,7 +19,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
      Spotify media playback data\
      ![Screen 3 screenshot](screenshots/screen_3_vlc.jpg)\
      VLC media playback data
-  4. osu! `z`-or-`x`-keystrokes-per-second measurement: current CPS, peak CPS.
+  4. current CPS and peak CPS measurement: either mouse clicks, `z` and `x` strokes or both (switch with `Ctrl+Alt+O`, reset peak with `Ctrl+Alt+R`)
 
 ## Setup
   1. Acquire an SSD1306 module that's wired to use the I2C interface.

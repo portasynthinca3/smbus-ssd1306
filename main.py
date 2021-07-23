@@ -99,12 +99,6 @@ class SSD1306:
 
         self.flip()
 
-def setup_hotkeys(hk):
-    def _thr():
-        with keyboard.GlobalHotKeys(hk) as h:
-            h.join()
-    Thread(target=_thr).start()
-
 forced_screen, screen_fixed = -1, False
 screen_classes = Screen.__subclasses__()
 screens = []
@@ -124,14 +118,14 @@ def drawing_thread(disp: SSD1306):
         global screen_fixed
         screen_fixed = not screen_fixed
 
-    hotkeys = {"<ctrl>+<alt>+0": fix_screen}
+    hotkeys = {"<ctrl>+<alt>+f": fix_screen}
     for i in range(1, len(screens) + 1):
         def _ctx_preserve(x):
             hotkeys[f"<ctrl>+<alt>+{i}"] = lambda: force_screen(x - 1)
         _ctx_preserve(i)
     for s in screens:
         hotkeys.update(s.register_hotkeys())
-    setup_hotkeys(hotkeys)
+    keyboard.GlobalHotKeys(hotkeys).start()
 
     while True:
         # update screens
