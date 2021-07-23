@@ -19,7 +19,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
      Spotify media playback data\
      ![Screen 3 screenshot](screenshots/screen_3_vlc.jpg)\
      VLC media playback data
-  4. current CPS and peak CPS measurement: either mouse clicks, `z` and `x` strokes or both (switch with `Ctrl+Alt+O`, reset peak with `Ctrl+Alt+R`)
+  4. current CPS and peak CPS measurement: either mouse clicks, `z` and `x` strokes or both (switch with `Ctrl+Alt+O`, reset peak with `Ctrl+Alt+L`)
 
 ## Setup
   1. Acquire an SSD1306 module that's wired to use the I2C interface.

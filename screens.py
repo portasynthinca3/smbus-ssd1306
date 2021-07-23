@@ -169,7 +169,7 @@ class CpsScreen(Screen):
     def register_hotkeys(self):
         mouse.Listener(on_click=self.mouse_clicked).start()
         return {
-            "<ctrl>+<alt>+r": self.reset,
+            "<ctrl>+<alt>+l": self.reset,
             "<ctrl>+<alt>+o": self.switch_mode,
             "z": self.key_pressed,
             "x": self.key_pressed
