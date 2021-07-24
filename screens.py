@@ -35,6 +35,7 @@ def draw_text_left(draw: ImageDraw, y, text):
     w, _ = draw.textsize(text)
     draw.text((128 - w, y), text, fill=1)
 
+
 class Graph:
     def __init__(self, width, height, max_val=None):
         self.width = width
@@ -55,6 +56,7 @@ class Graph:
             y = xy[1] + self.height
             draw.line((x, y, x, y - val), fill=1, width=1)
 
+
 class Screen:
     def __init__(self, draw):
         self.draw = draw
@@ -64,6 +66,7 @@ class Screen:
         pass
     def render(self): ## renders the screen
         pass
+
 
 class CpuRamScreen(Screen):
     def __init__(self, draw):
@@ -84,6 +87,7 @@ class CpuRamScreen(Screen):
         self.ram.render(self.draw, (64, 16))
         self.draw.text((0, 0), f"{round(self.freq, 1)} GHz", fill=1)
         self.draw.text((63, 0), f"{round(self.used_ram, 1)}/{round(self.total_ram, 1)} GB", fill=1)
+
 
 class TempNetScreen(Screen):
     def __init__(self, draw):
@@ -113,6 +117,7 @@ class TempNetScreen(Screen):
         self.draw.text((0, 0), f"{int(self.cur_temp)}°C", fill=1)
         self.draw.text((63, 0), f"{round(self.net / 1000000, 2)}mbps", fill=1)
 
+
 class MediaScreen(Screen):
     def __init__(self, draw):
         super().__init__(draw)
@@ -141,6 +146,7 @@ class MediaScreen(Screen):
         draw_text_right(self.draw, 46, pos_text)
 
         return should_skip
+
 
 class CpsScreen(Screen):
     def __init__(self, draw):
@@ -187,3 +193,21 @@ class CpsScreen(Screen):
         self.draw.text((0, 0), {None: "B", False: "K", True: "M"}[self.mode], fill=1)
         self.draw.text((16, 0), f"{int(self.cps_cur)} cur", fill=1)
         self.draw.text((56, 0), f"{int(self.cps_peak)} peak", fill=1)
+
+class ProcessScreen(Screen):
+    def __init__(self, draw):
+        super().__init__(draw)
+        self.top = []
+        self.last_query = 0
+
+    def update(self):
+        if time.time() - self.last_query > 1:
+            processes = [(p.name(), p.cpu_percent()) for p in psutil.process_iter()]
+            self.top = sorted(processes, reverse=True, key=lambda p: p[1])[:7]
+            self.last_query = time.time()
+        
+    def render(self):
+        for i, (name, cpu) in enumerate(self.top):
+            offs = i * 8
+            draw_progress(self.draw, (0, offs + 1), (31, 6), cpu, 100 * psutil.cpu_count())
+            self.draw.text((34, offs - 2), name, fill=1)
