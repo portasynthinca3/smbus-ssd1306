@@ -15,6 +15,7 @@ from pynput import keyboard
 import os, sys
 from screens import Screen
 from config import *
+import cv2, numpy
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -100,25 +101,67 @@ class SSD1306:
         self.flip()
 
 forced_screen, screen_fixed = -1, False
-screen_classes = Screen.__subclasses__()
+screen_id = 0
+screen_start = time()
 screens = []
-def drawing_thread(disp: SSD1306):
-    global forced_screen, screens
+capture_frames, capturing = [], False
 
+def force_screen(i):
+    global forced_screen
+    forced_screen = i
+def fix_screen():
+    global screen_fixed
+    screen_fixed = not screen_fixed
+
+def start_capture():
+    global capturing, capture_frames
+    capture_frames = []
+    capturing = True
+    print("capture started")
+def stop_capture():
+    global capturing, capture_frames
+    capturing = False
+    if len(capture_frames) == 0:
+        return
+    # get the average fps
+    last = capture_frames[0][0]
+    delta = []
+    for t, _ in capture_frames:
+        delta.append(t - last)
+        last = t
+    delta = delta[1:]
+    fps = len(delta) / sum(delta)
+    print(f"calculated fps {fps}, {len(capture_frames)} total frames")
+    # create a video writer
+    writer = cv2.VideoWriter(
+        os.path.join(os.path.expanduser(VIDEO_PATH), "ssd1306_capture.mp4"),
+        cv2.VideoWriter_fourcc("m", "p", "4", "v"),
+        fps, (512, 256)
+    )
+    # convert all frames to CV format
+    for _, frame in capture_frames:
+        frame = cv2.resize(frame, (512, 256), interpolation=cv2.INTER_NEAREST)
+        writer.write(frame)
+    writer.release()
+    print("capture saved")
+def toggle_capture():
+    global capturing
+    capturing = not capturing
+    if capturing:
+        start_capture()
+    else:
+        stop_capture()
+
+def drawing_thread(disp: SSD1306):
+    global screen_id, screen_start, forced_screen, capturing, capture_frames
     # init state
-    screen_id = 0
-    screen_start = time()
-    screens = [x(disp.draw) for x in screen_classes]
+    screens = [x(disp.draw) for x in Screen.__subclasses__()]
 
     # add hotkeys
-    def force_screen(i):
-        global forced_screen
-        forced_screen = i
-    def fix_screen():
-        global screen_fixed
-        screen_fixed = not screen_fixed
-
-    hotkeys = {"<ctrl>+<alt>+f": fix_screen}
+    hotkeys = {
+        "<ctrl>+<alt>+f": fix_screen,
+        "<ctrl>+<alt>+c": toggle_capture
+    }
     for i in range(1, len(screens) + 1):
         def _ctx_preserve(x):
             hotkeys[f"<ctrl>+<alt>+{i}"] = lambda: force_screen(x - 1)
@@ -154,8 +197,11 @@ def drawing_thread(disp: SSD1306):
         if screen_fixed:
             disp.draw.rectangle((123, 0, 127, 4), fill=1)
 
-        # transfer data to the display
         if not skip:
+            # save capture data
+            if capturing:
+                capture_frames.append((time(), numpy.array(disp.img.convert("RGB"))))
+            # transfer data to the display
             disp.flip()
 
 if __name__ == "__main__":

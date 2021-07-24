@@ -8,6 +8,7 @@ Why not use an SSD1306 OLED module as a metadata display for my laptop? That's e
   - Global screen switching using `Ctrl+Alt+{ScreenNo}`
   - Automatic screen switching suspension using `Ctrl+Alt+F`
   - Media playback info through D-Bus
+  - Screen capture using `Ctrl+Alt+C`
 
 #### Screens
   1. CPU frequency, CPU load graph, RAM usage, RAM usage graph\
@@ -41,7 +42,7 @@ Look in `config.py` for these variables
   - `SSD1306_ADDR`: display address. Probably `0x3C`, but may also be `0x3D`
   - `SCREEN_SWITCH_PERIOD`: the display will switch between different screens that many seconds apart
   - `MEDIA_PROVIDERS`: applications to try grabbing media playback data from using D-Bus
-  - `ACCESS_DBUS_AS`: uid to access the D-Bus as
+  - `VIDEO_PATH`: path to save screen captures to
 
 ## Usage
 The program should be run with root privileges:
