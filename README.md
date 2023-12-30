@@ -25,8 +25,15 @@ resurrected the project!
 
 ### Built-in Screens
   1. Power: battery percentage, charge/discharge status, wattage, time to
-  empty/full
+     empty/full
+
+     <img src="./screenshots/1.jpg" width="200" alt="Power screen">
+
   2. Media: source, status, artist, title, time, length
+
+     <img src="./screenshots/2.jpg" width="200" alt="Media screen (Firefox)">
+     <img src="./screenshots/3.jpg" width="200" alt="Media screen (Spotify)">
+
   3. Sleep: moving "zzz" symbol when system is asleep
 
 ## Setup
