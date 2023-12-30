@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "smbus-ssd1306"
+version = "0.1.0"
+description = "Drive an SSD1306 display using the system SMBus / I2C Bus"
+authors = []
+license = "WTFPL"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+smbus2 = "^0.4.3"
+pillow = "^10.1.0"
+dbus-python = "^1.3.2"
+pygobject = "^3.46.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

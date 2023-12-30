@@ -1,7 +1,15 @@
-I2C_ADAPTER = 0
+DEBUG = True
+
+# I2C settings
+I2C_ADAPTER = 3
 SSD1306_ADDR = 0x3C
-SCREEN_SWITCH_PERIOD = 3
+MPU6050_ADDR = 0x68
+BMP280_ADDR = 0x76
 
-MEDIA_PROVIDERS = ["spotify", "vlc"]
+# Screen settings
+# Power screen
+BATTERY = "BAT1"
 
-VIDEO_PATH = "~/Videos"
+# Screen runner settings
+MAX_UPDATE_RATE = 30
+SCREEN_SWITCH_PERIOD = 3 # seconds
