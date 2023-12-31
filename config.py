@@ -11,7 +11,7 @@ BATCH_CHUNK_SZ = 32 # max number of I2C transactions per syscall. Lower this num
 # Power screen
 BATTERY = "BAT1"
 # Media screen
-VOLUME_DEVICE = "Output Level Meter" # the list of devices is printed on startup
+VOLUME_DEVICE = "default" # the list of devices is printed on startup
 
 # Screen runner settings
 MAX_UPDATE_RATE = 30
