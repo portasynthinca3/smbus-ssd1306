@@ -6,8 +6,13 @@ is able to communicate with a host microcontroller via
 [SPI](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface). This project
 uses I2C.
 
+<img src="./screenshots/0.jpg" width="400" alt="An SSD1306 OLED module installed in a laptop">
+
 **Q**: _Microcontroller? Weren't we talking about a full-blown computer?_\
 **A**: Your computer actually has multiple I2C buses. For example, mine has 7.
+
+**Q**: _Did you really cut an ugly hole in your laptop for this?_\
+**A**: Yes.
 
 ⚠️ **Warning:** This project is Linux-only and requires some electronics
 knowledge. You are going to have to solder wires to your motherboard and connect
