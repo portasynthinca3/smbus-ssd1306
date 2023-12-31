@@ -10,11 +10,12 @@ from gi.repository import GLib
 from driver.ssd1306 import SSD1306
 # from driver.mpu6050 import MPU6050
 # from driver.bmp280 import BMP280
-from config import *
+from config import I2C_ADAPTER, SSD1306_ADDR
 from screen.runner import ScreenRunner
 from screen.power import PowerScreen
 from screen.media import MediaScreen
 from screen.sleep import SleepScreen
+from server import ScreenService
 
 def glib_thread():
     loop = GLib.MainLoop()
@@ -29,18 +30,21 @@ if __name__ == "__main__":
         display.power(False)
         exit()
     if "white" in sys.argv:
-        display.draw.rectangle((0, 0, 128, 64), 1, width=0)
+        display.draw.rectangle((0, 0, 128, 64), 1)
         display.flip()
         exit()
 
-    # start GLib loop thread for receiving DBus signals
-    threading.Thread(target=glib_thread).start()
-
-    # start screen runner
+    # init screen runner
     screen_runner = ScreenRunner([
         PowerScreen,
         MediaScreen,
         SleepScreen,
     ])
+
+    # init D-Bus service
+    ScreenService(screen_runner, "/ru/psi3/ssd1306/screens", "ru.psi3.ssd1306")
+
+    # run application
+    threading.Thread(target=glib_thread).start()
     while True:
         screen_runner.frame(display)

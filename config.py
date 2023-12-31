@@ -15,4 +15,4 @@ VOLUME_DEVICE = "default" # the list of devices is printed on startup
 
 # Screen runner settings
 MAX_UPDATE_RATE = 30
-SCREEN_SWITCH_PERIOD = 3 # seconds
+SCREEN_SWITCH_PERIOD = 5 # seconds
