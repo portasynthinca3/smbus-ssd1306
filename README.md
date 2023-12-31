@@ -41,6 +41,8 @@ resurrected the project!
      <img src="./screenshots/2.jpg" width="200" alt="Media screen (Firefox)">
      <img src="./screenshots/3.jpg" width="200" alt="Media screen (Spotify)">
 
+  3. Cute New year animation
+
   3. Sleep: moving "zzz" symbol when system is asleep
 
 ## Setup

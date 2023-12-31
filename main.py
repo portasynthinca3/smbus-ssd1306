@@ -15,6 +15,7 @@ from screen.runner import ScreenRunner
 from screen.power import PowerScreen
 from screen.media import MediaScreen
 from screen.sleep import SleepScreen
+from screen.new_year import NewYearScreen
 from server import ScreenService
 
 def glib_thread():
@@ -38,6 +39,7 @@ if __name__ == "__main__":
     screen_runner = ScreenRunner([
         PowerScreen,
         MediaScreen,
+        NewYearScreen,
         SleepScreen,
     ])
 
