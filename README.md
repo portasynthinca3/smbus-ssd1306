@@ -23,6 +23,7 @@ resurrected the project!
   - Multiple screens with different information
   - Framework to add custom screens
   - Works with slow buses (100 kHz)
+  - Control over D-Bus
 
 ### Built-in Screens
   1. Power: battery percentage, charge/discharge status, wattage, time to
@@ -77,7 +78,7 @@ pre-shutdown scripts):
 $ poetry run python main.py blank
 ```
 
-## Example Systemd Unit
+### Example Systemd Unit
   1. Create `/usr/lib/systemd/user/ssd1306.service`:
      ```
      [Unit]
@@ -102,5 +103,13 @@ $ poetry run python main.py blank
      systemctl --user enable ssd1306 --now
      ```
 
-## Make Your Own Screen
+### Control Over D-Bus
+  - Service: `ru.psi3.ssd1306`
+  - Object path: `/ru/psi3/ssd1306/screens`
+  - Interface: `ru.psi3.ssd1306.Screen`
+    - `Overtake(number, duration)`, type `ii` displays screen number `number`
+      for `duration` ms
+    - `SwitchPin()` pins or unpins the currently displayed screen
+
+### Make Your Own Screen
 TODO
