@@ -40,7 +40,7 @@ if __name__ == "__main__":
     screen_runner = ScreenRunner([
         PowerScreen,
         MediaScreen,
-        SleepScreen
+        SleepScreen,
     ])
     while True:
         screen_runner.frame(display)

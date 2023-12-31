@@ -30,7 +30,7 @@ resurrected the project!
 
      <img src="./screenshots/1.jpg" width="200" alt="Power screen">
 
-  2. Media: source, status, artist, title, time, length
+  2. Media: source, status, artist, title, time, length, VU meter
 
      <img src="./screenshots/2.jpg" width="200" alt="Media screen (Firefox)">
      <img src="./screenshots/3.jpg" width="200" alt="Media screen (Spotify)">
