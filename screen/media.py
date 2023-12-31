@@ -5,17 +5,18 @@ import pyaudio
 import struct
 from math import sqrt
 
-from config import VOLUME_DEVICE
+from config import VOLUME_DEVICE, VOLUME_MULTIPLY
 
 SERVICE1 = "org.mpris.MediaPlayer2"
 SERVICE2 = "org.mpris.MediaPlayer2.Player"
+
+pa = pyaudio.PyAudio()
 
 class MediaScreen(Screen):
     def __init__(self):
         self.vu = (0, 0)
 
         # list audio devices
-        pa = pyaudio.PyAudio()
         devices = []
         print("Available input devices:")
         for i in range(pa.get_device_count()):
@@ -51,7 +52,8 @@ class MediaScreen(Screen):
             r_sqsum += (struct.unpack("h", data[i + 2 : i + 4])[0] / 32768) ** 2
 
         # calculate volume
-        self.vu = sqrt(l_sqsum / quarter_len), sqrt(r_sqsum / quarter_len)
+        self.vu = tuple(min(1, sqrt(sq_sum / quarter_len) * VOLUME_MULTIPLY)
+                        for sq_sum in (l_sqsum, r_sqsum))
 
         return None, pyaudio.paContinue
 
