@@ -58,75 +58,48 @@ resurrected the project!
   6. Run `i2cdetect 0` (from the `i2c-tools` package on most distros) and check
   if it has found a device at address `0x3C` or `0x3D` - that's the display. If
   not:\
-     7.1. run `i2cdetect -l` to list all I2C adapters, try all of them and see
+     6.1. run `i2cdetect -l` to list all I2C adapters, try all of them and see
      if the display shows up on any of them;\
-     7.2. check your wiring and try again.
-  7. Tweak the configuration (see below)
-  8. Make yourself the owner of the adapter virtual file:
-  `sudo chmod $USER /dev/i2c-0` (or another number, refer to step 7)
-  9. Run! `python3 main.py` or `chmod +x main.py && ./main.py`
-
-## Configuration
-The constants in `config.py` are pretty self-explanatory.
+     6.2. check your wiring and try again.
+  7. Clone this repo and install its dependencies (`poetry install`)
+  8. Tweak the configuration in `config.py`
+  9. Run! `poetry run python main.py`
 
 ## Usage
-The program should be run with root privileges:
+Normal operation:
 ```
-# either one
-sudo python3 main.py
-sudo ./main.py
-```
-If you just want it to clear the screen and exit, pass `blank` (useful for pre-shutdown and pre-suspend scripts):
-```
-# either one
-sudo python3 main.py blank
-sudo ./main.py blank
+$ poetry run python main.py
 ```
 
-## Full Automation Tutorial (systemd)
-  1. Add this to `/etc/sudoers`:
-     ```
-     Defaults	env_keep += "DBUS_SESSION_BUS_ADDRESS"
-     ```
-  2. Create `/etc/systemd/system/ssd1306.service`:
+If you just want it to clear the screen and exit, pass `blank` (useful for
+pre-shutdown scripts):
+```
+$ poetry run python main.py blank
+```
+
+## Example Systemd Unit
+  1. Create `/usr/lib/systemd/user/ssd1306.service`:
      ```
      [Unit]
      Description=SSD1306 control software
-     After=network.target
+     Requires=dbus.service
+     After=dbus.service
 
      [Service]
      Type=simple
-     WorkingDirectory=/path/to/smbus-ssd1306
-     # change the :1 on the next line to your display number
+     WorkingDirectory=/path/to/smbus-ssd1306 # <-- change this
      Environment="DISPLAY=:1"
-     # change the 1000 on the next line to your uid
-     Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
-     # change the 0 on the next line to the I2C adapter
-     # change "username" on the next line to your username
-     ExecStart=sh -c "chown username /dev/i2c-0 && sudo --user=username python3 /path/to/smbus-ssd1306/main.py"
-     ExecStop=/path/to/smbus-ssd1306/main.py blank
+     ExecStart=sh -c "poetry run python main.py"
+     ExecStopPost=sh -c "poetry run python main.py blank"
      Restart=on-failure
+     Slice=session.slice
 
      [Install]
-     WantedBy=multi-user.target
+     WantedBy=default.target
      ```
-  3. Start and enable the service:
+  2. Start and enable the service:
      ```
-     sudo systemctl start ssd1306
-     sudo systemctl enable ssd1306
-     ```
-  4. Create `/usr/lib/systemd/system-sleep/ssd1306`:
-     ```
-     #!/usr/bin/bash
-     if [ "${1}" == "pre" ]; then
-       systemctl stop ssd1306
-     elif [ "${1}" == "post" ]; then
-       systemctl start ssd1306
-     fi
-     ```
-  4. ...and make it executable:
-     ```
-     sudo chmod +xxx /usr/lib/systemd/system-sleep/ssd1306
+     systemctl --user enable ssd1306 --now
      ```
 
 ## Make Your Own Screen
