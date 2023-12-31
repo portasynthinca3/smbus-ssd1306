@@ -1,7 +1,7 @@
 from time import time, sleep
 
 from driver.ssd1306 import SSD1306
-from config import MAX_UPDATE_RATE, SCREEN_SWITCH_PERIOD
+from config import DEBUG, MAX_UPDATE_RATE, SCREEN_SWITCH_PERIOD
 
 class ScreenRunner:
     def __init__(self, screens: SSD1306):
@@ -38,6 +38,8 @@ class ScreenRunner:
         # maintain max refresh rate
         sleep(max(0, (1 / MAX_UPDATE_RATE) - draw_took))
         draw_took = time() - draw_start
+        if DEBUG:
+            print(f"frame took {draw_took * 1000 :.0f}ms, effective {1 / draw_took :.1f}fps")
 
         # return screen to stack
         self.screen_stack.append((idx, timeout - draw_took))

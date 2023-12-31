@@ -22,6 +22,7 @@ resurrected the project!
 ## Features
   - Multiple screens with different information
   - Framework to add custom screens
+  - Works with slow buses (100 kHz)
 
 ### Built-in Screens
   1. Power: battery percentage, charge/discharge status, wattage, time to

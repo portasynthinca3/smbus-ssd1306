@@ -1,5 +1,7 @@
-from smbus2 import SMBus
+from smbus2 import SMBus, i2c_msg
 from PIL import Image, ImageDraw
+
+from config import BATCH_CHUNK_SZ
 
 class SSD1306Vals:
     CMD_PREFIX =           0x00
@@ -63,10 +65,12 @@ class SSD1306:
 
     def cmd(self, cmd, *args):
         self.bus.write_i2c_block_data(self.addr, SSD1306Vals.CMD_PREFIX, [cmd] + list(args))
-    def data(self, data):
-        self.bus.write_i2c_block_data(self.addr, SSD1306Vals.DATA_PREFIX, list(data))
+    def batch(self, batch):
+        for i in range(0, len(batch), BATCH_CHUNK_SZ):
+            chunk = batch[i : i + BATCH_CHUNK_SZ]
+            self.bus.i2c_rdwr(*[i2c_msg.write(self.addr, bytes(buf)) for buf in chunk])
 
-    def flip(self):
+    def flip(self, optimize_transfer=True):
         # create framebuffer
         fb = bytearray([0] * (128 * 64 // 8))
 
@@ -78,12 +82,51 @@ class SSD1306:
                 fb[idx] |= 1 << shift
             else:
                 fb[idx] &= ~(1 << shift)
+
+        # construct transfer
+        transfer = []
+        if optimize_transfer and self.last_fb:
+            # find contiguous blocks of change that do not cross the page boundary
+            changed = [fb[i] != self.last_fb[i] for i in range(len(fb))]
+            for i in range(8):
+                page_offs = 128 * i
+                blocks_of_change = []
+                page = changed[page_offs : page_offs + 128]
+                first_in_blk = None
+                for j, c in enumerate(page):
+                    if c and (first_in_blk is None):
+                        first_in_blk = j
+                    if (first_in_blk is not None) and (not c):
+                        blocks_of_change.append((first_in_blk, j))
+                        first_in_blk = None
+                    if j == 127 and (first_in_blk is not None):
+                        blocks_of_change.append((first_in_blk, j + 1))
+
+                # chunk blocks by 8 bytes
+                blk_chunks = []
+                for blk in blocks_of_change:
+                    start, end = blk
+                    for j in range(start, end, 8):
+                        blk_chunks.append((j, min(j + 8, end)))
+
+                # construct transfer for page
+                transfer.append([SSD1306Vals.CMD_PREFIX, SSD1306Vals.PAGE_ADDR, i, i])
+                last_col = None
+                for start, end in blk_chunks:
+                    if start != last_col:
+                        transfer.append([SSD1306Vals.CMD_PREFIX, SSD1306Vals.COL_ADDR, start, 0x7F])
+                    transfer.append(bytes([SSD1306Vals.DATA_PREFIX]) + fb[page_offs + start : page_offs + end])
+                    last_col = end
+        else:
+            # no optimizations
+            # still pretty fast, about 7.8FPS @ 100kHz
+            transfer.append([SSD1306Vals.CMD_PREFIX, SSD1306Vals.PAGE_ADDR, 0, 0x07])
+            transfer.append([SSD1306Vals.CMD_PREFIX, SSD1306Vals.COL_ADDR, 0, 0x7F])
+            for i in range(0, 128 * 64 // 8, 8):
+                transfer.append(bytes([SSD1306Vals.DATA_PREFIX]) + fb[i : i + 8])
             
-        # write framebuffer
-        self.cmd(SSD1306Vals.PAGE_ADDR, 0, 0xFF)
-        self.cmd(SSD1306Vals.COL_ADDR, 0, 127)
-        for i in range(0, 128 * 64 // 8, 8):
-            self.data(fb[i : i+8])
+        # perform transfer
+        self.batch(transfer)
 
         # remember last framebuffer
         self.last_fb = fb
