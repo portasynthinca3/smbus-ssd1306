@@ -85,6 +85,11 @@ pre-shutdown scripts):
 $ poetry run python main.py blank
 ```
 
+Play Bad Apple:
+```
+$ poetry run python main.py bad_apple
+```
+
 ### Example Systemd Unit
   1. Create `/usr/lib/systemd/user/ssd1306.service`:
      ```
