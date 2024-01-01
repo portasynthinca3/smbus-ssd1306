@@ -32,7 +32,7 @@ class MediaScreen(Screen):
                     input_device_index=index,
                     channels=2,
                     rate=48000,
-                    frames_per_buffer=1024,
+                    frames_per_buffer=512,
                     input=True,
                     stream_callback=self.audio_data_cb)
 

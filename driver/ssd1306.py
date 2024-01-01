@@ -71,6 +71,8 @@ class SSD1306:
             self.bus.i2c_rdwr(*[i2c_msg.write(self.addr, bytes(buf)) for buf in chunk])
 
     def flip(self, optimize_transfer=True):
+        optimize_transfer = optimize_transfer and self.last_fb
+
         # create framebuffer
         fb = bytearray([0] * (128 * 64 // 8))
 
@@ -83,9 +85,9 @@ class SSD1306:
             else:
                 fb[idx] &= ~(1 << shift)
 
-        # construct transfer
+        # construct transfers
         transfer = []
-        if optimize_transfer and self.last_fb:
+        if optimize_transfer:
             # find contiguous blocks of change that do not cross the page boundary
             changed = [fb[i] != self.last_fb[i] for i in range(len(fb))]
             for i in range(8):
@@ -130,6 +132,8 @@ class SSD1306:
 
         # remember last framebuffer
         self.last_fb = fb
+
+        return sum([len(arr) for arr in transfer]), 1160 # transfer size, max transfer size
 
     def power(self, val):
         self.cmd(SSD1306Vals.DISPLAY_ON if val else SSD1306Vals.DISPLAY_OFF)

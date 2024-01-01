@@ -32,6 +32,7 @@ class SleepScreen(Screen):
         if self.sleep_lock:
             display.sleep_mode(False)
             display.last_fb = None # invalidate old framebuffer (we don't know how long it was scrolling for)
+            self.sleep_lock = False
         return (False, None)
 
     def draw(self, overtaking, image_draw: ImageDraw):

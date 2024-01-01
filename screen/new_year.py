@@ -16,7 +16,7 @@ class NewYearScreen(Screen):
 
     def __init__(self):
         self.snow = []
-        self.next_flake = time() + (random() * 0.1)
+        self.next_flake = time() + (random() * 0.3)
 
     def update(self, display):
         return (True, None)
@@ -52,8 +52,8 @@ class NewYearScreen(Screen):
         image_draw.polygon([(55, 47), (57, 45), (58, 45), (60, 47)], 1) # level 3
 
         # draw snow
+        image_draw.point([(x, y) for x, y, _, _ in self.snow], 1)
         for i, (x, y, last, period) in enumerate(self.snow):
-            image_draw.point((x, y), 1)
             if time() - last >= period:
                 y = (y + 1) % 64
                 # check if can move down
@@ -63,6 +63,5 @@ class NewYearScreen(Screen):
         # generate new snow
         if time() >= self.next_flake:
             self.snow.append(self._generate_snow())
-            self.next_flake = time() + (random() * 0.1)
-        if len(self.snow) > MAX_SNOW:
-            self.snow = []
+            self.next_flake = time() + (random() * 0.3)
+        self.snow = self.snow[-MAX_SNOW:]

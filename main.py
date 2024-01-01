@@ -34,6 +34,10 @@ if __name__ == "__main__":
         display.draw.rectangle((0, 0, 128, 64), 1)
         display.flip()
         exit()
+    if "bad_apple" in sys.argv:
+        import bad_apple
+        bad_apple.run(display)
+        exit()
 
     # init screen runner
     screen_runner = ScreenRunner([
