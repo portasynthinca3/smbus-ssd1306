@@ -5,7 +5,7 @@ import pyaudio
 import struct
 from math import sqrt
 
-from config import VOLUME_DEVICE, VOLUME_MULTIPLY
+from config import PLAYER_IGNORE, VOLUME_DEVICE, VOLUME_MULTIPLY
 
 SERVICE1 = "org.mpris.MediaPlayer2"
 SERVICE2 = "org.mpris.MediaPlayer2.Player"
@@ -60,6 +60,8 @@ class MediaScreen(Screen):
     def update(self, display):
         # get all players
         players = [name for name in SessionBus().list_names() if name.startswith("org.mpris.MediaPlayer2.")]
+        for ignore in PLAYER_IGNORE:
+            players = [name for name in players if ignore not in name]
         if len(players) == 0:
             return (False, 0)
         
@@ -88,8 +90,8 @@ class MediaScreen(Screen):
         if self.playback_status != status:
             self.playback_status = status
             return (True, 2)
-        else:
-            return (True, None)
+
+        return (True, None)
 
     def draw(self, overtaking, image_draw: ImageDraw):
         # playback status

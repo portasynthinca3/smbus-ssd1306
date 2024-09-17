@@ -15,6 +15,7 @@ from screen.runner import ScreenRunner
 from screen.power import PowerScreen
 from screen.media import MediaScreen
 from screen.sleep import SleepScreen
+from screen.load import LoadScreen
 from screen.new_year import NewYearScreen
 from server import ScreenService
 
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     screen_runner = ScreenRunner([
         PowerScreen,
         MediaScreen,
+        LoadScreen,
         NewYearScreen,
         SleepScreen,
     ])
