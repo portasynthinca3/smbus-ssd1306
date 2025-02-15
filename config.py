@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 
 # I2C settings
 I2C_ADAPTER = 6
@@ -8,6 +8,9 @@ BMP280_ADDR = 0x76
 BATCH_CHUNK_SZ = 32 # keep halving this number if you get OSErrors nr 22
 
 # Screen settings
+# Fish tank
+N_FISH = 10
+N_SEAWEED = 7
 # New year animation
 MAX_SNOW = 150
 # Power screen

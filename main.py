@@ -16,7 +16,8 @@ from screen.power import PowerScreen
 from screen.media import MediaScreen
 from screen.sleep import SleepScreen
 from screen.load import LoadScreen
-from screen.new_year import NewYearScreen
+# from screen.new_year import NewYearScreen
+from screen.fish_tank import FishTankScreen
 from server import ScreenService
 
 def glib_thread():
@@ -45,7 +46,8 @@ if __name__ == "__main__":
         PowerScreen,
         MediaScreen,
         LoadScreen,
-        NewYearScreen,
+        # NewYearScreen,
+        FishTankScreen,
         SleepScreen,
     ])
 

@@ -30,7 +30,7 @@ def run(display: SSD1306):
         # draw frame
         for y in range(64):
             for x in range(85):
-                if sum(frame[y][x]) / 3 / 255 >= 0.5:
+                if frame[y][x][0] / 255 >= 0.5:
                     draw.point((x + 21, y), 1)
         
         # flip
