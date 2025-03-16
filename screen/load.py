@@ -57,3 +57,9 @@ class LoadScreen(Screen):
         # CPU temperature
         if self.temp is not None:
             image_draw.text((x, y - 7), f"{self.temp:2.0f}C", 1, JB_MONO_20)
+        y += 20
+
+        # memory usage
+        mem_used = (self.mem_actual.total - self.mem_actual.available) / 1024**3
+        image_draw.text((x, y - 7), f"{mem_used:2.1f}G", 1, JB_MONO_20)
+        y += 20
