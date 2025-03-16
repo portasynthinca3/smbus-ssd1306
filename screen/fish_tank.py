@@ -23,8 +23,8 @@ FISH_IMAGES = [
         " XXXXXXXXX   XXX",
         "XX.XXXXXXXXXXXX ",
         "XXXXXXXXXXXXXX  ",
-        " XXXXXXXXXXXX",
-        "  XXXXXXXXX",
+        " XXXXXXXXXXXX   ",
+        "  XXXXXXXXX     ",
     ],
     [
         "     X       ",
