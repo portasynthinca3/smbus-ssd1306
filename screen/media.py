@@ -8,6 +8,7 @@ from math import sqrt
 from urllib import request
 from time import time
 
+from fonts import JB_MONO_10
 from config import PLAYER_IGNORE, VOLUME_DEVICE, VOLUME_MULTIPLY
 
 SERVICE1 = "org.mpris.MediaPlayer2"
@@ -16,10 +17,10 @@ SERVICE2 = "org.mpris.MediaPlayer2.Player"
 pa = pyaudio.PyAudio()
 
 def scrolling_text(image_draw: ImageDraw, text: str, w_limit: int, pos: tuple[int, int]):
-    _, _, w, h = image_draw.textbbox((0, 0), text)
+    _, _, w, h = image_draw.textbbox((0, 0), text, JB_MONO_10)
     temp_image = Image.new("1", (w, h))
     temp_draw = ImageDraw(temp_image)
-    temp_draw.text((0, 0), text, 1)
+    temp_draw.text((0, 0), text, 1, JB_MONO_10)
 
     if temp_image.width > w_limit:
         x_pos = 0
@@ -139,8 +140,8 @@ class MediaScreen(Screen):
         if self.position is not None and self.length:
             image_draw.rectangle([(65, 56), (127, 63)], 0, 1) # progress bar frame
             image_draw.rectangle([(67, 58), (67 + (self.position * 58 / self.length), 61)], 1) # progress bar
-            image_draw.text((65, 54), f"{self.position // 60_000_000}:{(self.position // 1_000_000) % 60 :02}", 1, anchor="lb") # playback position
-            image_draw.text((127, 54), f"{self.length // 60_000_000}:{(self.length // 1_000_000) % 60 :02}", 1, anchor="rb") # song length
+            image_draw.text((65, 54), f"{self.position // 60_000_000}:{(self.position // 1_000_000) % 60 :02}", 1, JB_MONO_10, anchor="lb") # playback position
+            image_draw.text((127, 54), f"{self.length // 60_000_000}:{(self.length // 1_000_000) % 60 :02}", 1, JB_MONO_10, anchor="rb") # song length
 
         # playback status
         x = 92
