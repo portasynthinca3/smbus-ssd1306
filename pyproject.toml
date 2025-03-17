@@ -15,6 +15,7 @@ pygobject = "^3.46.0"
 pyaudio = "^0.2.14"
 opencv-python = "^4.9.0.80"
 psutil = "^5.9.7"
+numpy = "^2.2.4"
 
 
 [build-system]

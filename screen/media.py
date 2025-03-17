@@ -4,9 +4,10 @@ from PIL.ImageDraw import ImageDraw
 from PIL import Image
 import pyaudio
 import struct
-from math import sqrt
 from urllib import request
 from time import time
+import numpy as np
+from os import remove
 
 from fonts import JB_MONO_10
 from config import PLAYER_IGNORE, VOLUME_DEVICE, VOLUME_MULTIPLY
@@ -37,7 +38,7 @@ def scrolling_text(image_draw: ImageDraw, text: str, w_limit: int, pos: tuple[in
 
 class MediaScreen(Screen):
     def __init__(self):
-        self.vu = (0, 0)
+        self.fft = None
         self.album_cover_url = None
 
         # list audio devices
@@ -68,16 +69,19 @@ class MediaScreen(Screen):
         return Interface(obj, "org.freedesktop.DBus.Properties")
     
     def audio_data_cb(self, data, _frames, _time, _flags):
-        # convert input buffer to float
-        quarter_len = len(data) // 4
-        l_sqsum, r_sqsum = 0, 0
+        # mix-down input buffer and convert to float
+        f_frame = [0] * (len(data) // 4)
         for i in range(0, len(data), 4):
-            l_sqsum += (struct.unpack("h", data[i : i + 2])[0] / 32768) ** 2
-            r_sqsum += (struct.unpack("h", data[i + 2 : i + 4])[0] / 32768) ** 2
+            left = struct.unpack("h", data[i : i + 2])[0] / 32768
+            right = struct.unpack("h", data[i + 2 : i + 4])[0] / 32768
+            f_frame[i // 4] = (left + right) / 2
 
-        # calculate volume
-        self.vu = tuple(min(1, sqrt(sq_sum / quarter_len) * VOLUME_MULTIPLY)
-                        for sq_sum in (l_sqsum, r_sqsum))
+        # do fft
+        fft = np.absolute(np.fft.rfft(f_frame)) / 48
+        if self.fft is not None:
+            self.fft = np.mean(np.array([self.fft, fft]), axis=0) # smoothing
+        else:
+            self.fft = fft
 
         return None, pyaudio.paContinue
 
@@ -116,6 +120,7 @@ class MediaScreen(Screen):
                 cover = Image.open(cover_path).resize((64, 64)).convert("1")
                 self.album_cover = cover
                 self.album_cover_url = cover_url
+                remove(cover_path)
         except:
             self.album_cover = None
 
@@ -133,8 +138,8 @@ class MediaScreen(Screen):
             image_draw.rectangle(((0, 0), (63, 63)))
 
         # artist and title
-        scrolling_text(image_draw, self.title, 63, (65, 15))
-        scrolling_text(image_draw, self.artist, 63, (65, 29))
+        scrolling_text(image_draw, self.title, 63, (65, 22))
+        scrolling_text(image_draw, self.artist, 63, (65, 32))
 
         # progress bar and associated times
         if self.position is not None and self.length:
@@ -154,9 +159,9 @@ class MediaScreen(Screen):
         elif self.playback_status == "stopped":
             image_draw.rectangle([(x, y), (x + 7, y + 7)], 1)
         
-        # VU meter
-        VU_MAX = 32
-        if self.vu[0] > 1e-5:
-            image_draw.rectangle([(65, 0), (65 + (VU_MAX * self.vu[0]), 3)], 1)
-        if self.vu[1] > 1e-5:
-            image_draw.rectangle([(65, 5), (65 + (VU_MAX * self.vu[1]), 8)], 1)
+        # spectrum
+        x = 65
+        y = 22
+        for i in range(63):
+            fft_val = int((self.fft[i] ** 0.6) * (1 + (i / 63)) * y)
+            image_draw.line(((x + i, y), (x + i, y - fft_val)), 1, 1)
