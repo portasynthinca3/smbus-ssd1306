@@ -59,13 +59,13 @@ class PowerScreen(Screen):
         if self.watts:
             image_draw.text((50, 17), f"{self.watts:.1f}W", 1, JB_MONO_20) # wattage
 
-        # time to empty/full
         if self.time:
+            # time to empty/full
             image_draw.text((50, 37), f"{self.time // 3600}:{(self.time % 3600) // 60 :02}", 1, JB_MONO_20) # remaining time
-
-        # system time
-        now = datetime.now()
-        clock_str = f"{now.hour:02}{':' if now.microsecond > 500_000 else ' '}{now.minute:02}"
-        image_draw.text((0, 37), clock_str, 1, JB_MONO_20)
-        image_draw.text((65, 40), f"{now.day:02}/{now.month:02} {WEEKDAY_STR[now.weekday()]}", 1, JB_MONO_10)
-        image_draw.text((65, 49), str(now.year), 1, JB_MONO_10)
+        else:
+            # system time
+            now = datetime.now()
+            clock_str = f"{now.hour:02}{':' if now.microsecond > 500_000 else ' '}{now.minute:02}"
+            image_draw.text((0, 37), clock_str, 1, JB_MONO_20)
+            image_draw.text((65, 40), f"{now.day:02}/{now.month:02} {WEEKDAY_STR[now.weekday()]}", 1, JB_MONO_10)
+            image_draw.text((65, 49), str(now.year), 1, JB_MONO_10)
